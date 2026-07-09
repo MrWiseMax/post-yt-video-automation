@@ -12,7 +12,7 @@ export async function uploadVideo(yt, { title, description, tags, categoryId, la
         title,
         description,
         tags,
-        categoryId: categoryId || '22',
+        categoryId: categoryId || '27',
         defaultLanguage: language || 'en',
         defaultAudioLanguage: language || 'en',
       },

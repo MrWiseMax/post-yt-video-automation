@@ -13,6 +13,10 @@ import { buildChapters, assembleDescription } from './lib/description.js';
 import { uploadVideo, setThumbnail, uploadCaptions } from './lib/youtube.js';
 
 const VIDEO_ID = process.env.VIDEO_ID;
+const CAPTION_LANGUAGE = 'en';
+const YOUTUBE_CATEGORY_ID = '27'; // Education
+const VIDEO_TYPE = 'How-To';
+const VIDEO_TYPE_TAGS = ['education', 'how to', 'tutorial'];
 const now = () => new Date().toISOString();
 
 function splitTags(s) {
@@ -78,10 +82,10 @@ async function main() {
   const channelTags = splitTags(settings.channel_tags);
   const sampleTagsets = Array.isArray(settings.sample_tagsets) ? settings.sample_tagsets : [];
 
-  const ai = await generateContent({ title, timedTranscript, sampleTagsets });
+  const ai = await generateContent({ title, timedTranscript, sampleTagsets, videoType: VIDEO_TYPE });
 
   const chapters = buildChapters(ai.chapters, cues);
-  const finalTags = buildTags(channelTags, ai.tags, 500);
+  const finalTags = buildTags([...channelTags, ...VIDEO_TYPE_TAGS], ai.tags, 500);
   const description = assembleDescription(ai.description, chapters, settings.description_footer);
 
   // 6. Upload + schedule on YouTube.
@@ -90,13 +94,13 @@ async function main() {
     title,
     description,
     tags: finalTags,
-    categoryId: settings.youtube_category_id || '22',
-    language: settings.caption_language || 'en',
+    categoryId: YOUTUBE_CATEGORY_ID,
+    language: CAPTION_LANGUAGE,
     publishAt: publishAt.toISOString(),
     videoPath: mp4Path,
   });
   await setThumbnail(yt, youtubeVideoId, pngPath);
-  await uploadCaptions(yt, youtubeVideoId, srtPath, settings.caption_language || 'en');
+  await uploadCaptions(yt, youtubeVideoId, srtPath, CAPTION_LANGUAGE);
 
   // 7. Record success.
   await supabase

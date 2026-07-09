@@ -28,7 +28,7 @@ const SCHEMA = {
  * Generate SEO metadata from the transcript.
  * @returns {Promise<{description:string, tags:string[], chapters:{time_seconds:number,title:string}[]}>}
  */
-export async function generateContent({ title, timedTranscript, sampleTagsets }) {
+export async function generateContent({ title, timedTranscript, sampleTagsets, videoType = 'How-To' }) {
   const samples = (sampleTagsets || [])
     .map((s, i) => `Sample set ${i + 1}: ${Array.isArray(s) ? s.join(', ') : s}`)
     .join('\n');
@@ -36,6 +36,7 @@ export async function generateContent({ title, timedTranscript, sampleTagsets })
   const system = [
     'You are an expert YouTube SEO strategist for a long-form channel.',
     'From a video transcript you produce metadata that maximizes discovery and watch time while staying accurate to the content.',
+    `The default video type is ${videoType}. Frame the metadata as useful, educational, step-by-step content when the transcript supports it.`,
     'Rules:',
     '- description: 150-300 words. The first 2 lines are a strong hook (they show above "...more"). Natural, keyword-rich, no keyword stuffing, no hashtag spam. Do NOT include chapter timestamps or links (those are added separately).',
     '- tags: 15-30 specific, high-intent tags relevant to THIS video. Match the topical style of the sample tag sets provided, but do not copy them verbatim.',
@@ -45,6 +46,7 @@ export async function generateContent({ title, timedTranscript, sampleTagsets })
 
   const user = [
     `Video title: ${title}`,
+    `Video type: ${videoType}`,
     '',
     "Style reference — my channel's sample tag sets (match the style/topic focus, do not copy verbatim):",
     samples || '(none provided)',
