@@ -132,8 +132,6 @@ async function loadSettings(userId) {
   $('sample2').value = samples[1] || '';
   $('sample3').value = samples[2] || '';
   $('footer').value = data.description_footer || '';
-  $('categoryId').value = data.youtube_category_id || '22';
-  $('captionLang').value = data.caption_language || 'en';
   settingsLoadedForUserId = userId;
   settingsLoadingForUserId = null;
 }
@@ -147,8 +145,6 @@ $('saveSettingsBtn').addEventListener('click', async () => {
     channel_tags: $('channelTags').value.trim(),
     sample_tagsets: [$('sample1').value.trim(), $('sample2').value.trim(), $('sample3').value.trim()],
     description_footer: $('footer').value,
-    youtube_category_id: $('categoryId').value.trim() || '22',
-    caption_language: $('captionLang').value.trim() || 'en',
     updated_at: new Date().toISOString(),
   };
   const { error } = await supabase.from('settings').upsert(payload, { onConflict: 'id' });

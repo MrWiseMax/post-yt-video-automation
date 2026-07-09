@@ -16,7 +16,7 @@ create table if not exists public.settings (
   sample_tagsets      jsonb default '[]'::jsonb,     -- array of 3 strings (style reference for Claude)
   description_footer  text  default '',              -- appended to every description
   drive_folder_id     text  default '',              -- Google Drive folder to read
-  youtube_category_id text  default '22',            -- 22 = People & Blogs
+  youtube_category_id text  default '27',            -- 27 = Education
   caption_language    text  default 'en',
   updated_at          timestamptz default now()
 );
@@ -105,6 +105,10 @@ create trigger trg_dispatch_process_video
 alter table public.settings   enable row level security;
 alter table public.videos     enable row level security;
 alter table public.app_config enable row level security;
+
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on table public.settings to authenticated;
+grant select, insert, update, delete on table public.videos to authenticated;
 
 drop policy if exists "authenticated settings" on public.settings;
 create policy "authenticated settings" on public.settings
