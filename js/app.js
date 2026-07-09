@@ -4,6 +4,7 @@ import { etInputToUtc, formatEt, validatePublish } from './time.js';
 
 const $ = (id) => document.getElementById(id);
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseProjectRef = new URL(SUPABASE_URL).hostname.split('.')[0];
 
 let refreshTimer = null;
 
@@ -16,9 +17,54 @@ if (SUPABASE_URL.includes('YOUR-PROJECT') || SUPABASE_ANON_KEY.includes('YOUR-AN
 
 // ── Auth ──────────────────────────────────────────────────────────────────
 async function initAuth() {
-  const { data } = await supabase.auth.getSession();
-  render(data.session);
+  const callbackError = await handleAuthCallback();
+  if (callbackError) {
+    render(null);
+    setMsg($('loginMsg'), callbackError, 'err');
+    return;
+  }
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error) setMsg($('loginMsg'), error.message, 'err');
+  render(data?.session || null);
   supabase.auth.onAuthStateChange((_e, session) => render(session));
+}
+
+async function handleAuthCallback() {
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  if (!accessToken) return '';
+
+  const issuerProjectRef = getJwtIssuerProjectRef(accessToken);
+  if (issuerProjectRef && issuerProjectRef !== supabaseProjectRef) {
+    clearUrlHash();
+    await supabase.auth.signOut();
+    return `This magic link belongs to a different Supabase project (${issuerProjectRef}). This app is configured for ${supabaseProjectRef}. Send a fresh link from this app, or update js/config.js to match the Supabase project that sends the email.`;
+  }
+
+  if (!refreshToken) return '';
+  const { error } = await supabase.auth.setSession({
+    access_token: accessToken,
+    refresh_token: refreshToken,
+  });
+  clearUrlHash();
+  return error ? error.message : '';
+}
+
+function getJwtIssuerProjectRef(token) {
+  try {
+    const [, payload] = token.split('.');
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')));
+    return decoded?.iss ? new URL(decoded.iss).hostname.split('.')[0] : '';
+  } catch {
+    return '';
+  }
+}
+
+function clearUrlHash() {
+  history.replaceState(null, document.title, window.location.pathname + window.location.search);
 }
 
 function render(session) {
