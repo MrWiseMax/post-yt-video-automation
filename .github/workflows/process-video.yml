@@ -1,0 +1,44 @@
+name: Process & Schedule Video
+
+# Triggered by the web app (via Supabase repository_dispatch), or run manually.
+on:
+  repository_dispatch:
+    types: [process-video]
+  workflow_dispatch:
+    inputs:
+      video_id:
+        description: 'videos.id (uuid) from Supabase'
+        required: true
+
+concurrency:
+  group: process-video-${{ github.event.client_payload.video_id || github.event.inputs.video_id }}
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: worker
+        run: npm install --no-audit --no-fund
+
+      - name: Process & schedule the video
+        working-directory: worker
+        env:
+          VIDEO_ID: ${{ github.event.client_payload.video_id || github.event.inputs.video_id }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node src/process.js
