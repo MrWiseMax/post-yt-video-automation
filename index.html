@@ -42,9 +42,19 @@
             Then pick a target time (Eastern Time, at least ~3 hours out).
           </p>
 
-          <label for="publishAt">Target date &amp; time (Eastern Time)</label>
-          <input id="publishAt" type="datetime-local" />
-          <div id="publishPreview" class="small" style="margin-top:6px;"></div>
+          <div class="datetime-head">
+            <label for="publishAt">Target date &amp; time</label>
+            <span class="timezone-pill">Eastern Time</span>
+          </div>
+          <div class="datetime-field">
+            <span class="calendar-mark" aria-hidden="true"></span>
+            <input id="publishAt" type="datetime-local" />
+          </div>
+          <div class="schedule-meta">
+            <span>Minimum 3 hours ahead</span>
+            <span>15-minute steps</span>
+          </div>
+          <div id="publishPreview" class="publish-preview small" aria-live="polite"></div>
 
           <button id="scheduleBtn" class="primary block">Process &amp; Schedule Video</button>
           <div id="scheduleMsg" class="msg"></div>

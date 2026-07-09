@@ -48,6 +48,23 @@ export function formatEt(date) {
   );
 }
 
+export function utcToEtInputValue(date) {
+  if (!date || isNaN(date.getTime())) return '';
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).formatToParts(date).reduce((a, p) => {
+    a[p.type] = p.value;
+    return a;
+  }, {});
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
 // Returns an error string, or null if valid.
 export function validatePublish(utcDate) {
   if (!utcDate || isNaN(utcDate.getTime())) return 'Please pick a valid date and time.';

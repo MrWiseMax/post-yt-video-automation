@@ -1,12 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, OWNER_EMAIL } from './config.js';
-import { etInputToUtc, formatEt, validatePublish } from './time.js';
+import { etInputToUtc, formatEt, utcToEtInputValue, validatePublish } from './time.js';
 
 const $ = (id) => document.getElementById(id);
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const supabaseProjectRef = new URL(SUPABASE_URL).hostname.split('.')[0];
 
 let refreshTimer = null;
+let settingsLoadedForUserId = null;
+let settingsLoadingForUserId = null;
 
 // ── Config sanity check ───────────────────────────────────────────────────
 if (SUPABASE_URL.includes('YOUR-PROJECT') || SUPABASE_ANON_KEY.includes('YOUR-ANON')) {
@@ -69,16 +71,21 @@ function clearUrlHash() {
 
 function render(session) {
   const authed = !!session;
+  const userId = session?.user?.id || null;
   $('loginView').classList.toggle('hidden', authed);
   $('appView').classList.toggle('hidden', !authed);
   $('signOutBtn').classList.toggle('hidden', !authed);
   if (authed) {
-    loadSettings();
+    if (settingsLoadedForUserId !== userId && settingsLoadingForUserId !== userId) loadSettings(userId);
     loadVideos();
     if (!refreshTimer) refreshTimer = setInterval(loadVideos, 20000);
-  } else if (refreshTimer) {
-    clearInterval(refreshTimer);
-    refreshTimer = null;
+  } else {
+    settingsLoadedForUserId = null;
+    settingsLoadingForUserId = null;
+    if (refreshTimer) {
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
   }
 }
 
@@ -111,9 +118,13 @@ function switchTab(which) {
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────
-async function loadSettings() {
+async function loadSettings(userId) {
+  settingsLoadingForUserId = userId;
   const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
-  if (error || !data) return;
+  if (error || !data) {
+    settingsLoadingForUserId = null;
+    return;
+  }
   $('driveFolder').value = data.drive_folder_id || '';
   $('channelTags').value = data.channel_tags || '';
   const samples = Array.isArray(data.sample_tagsets) ? data.sample_tagsets : [];
@@ -123,6 +134,8 @@ async function loadSettings() {
   $('footer').value = data.description_footer || '';
   $('categoryId').value = data.youtube_category_id || '22';
   $('captionLang').value = data.caption_language || 'en';
+  settingsLoadedForUserId = userId;
+  settingsLoadingForUserId = null;
 }
 
 $('saveSettingsBtn').addEventListener('click', async () => {
@@ -144,14 +157,27 @@ $('saveSettingsBtn').addEventListener('click', async () => {
 });
 
 // ── Schedule ──────────────────────────────────────────────────────────────
+$('publishAt').step = 900;
+$('publishAt').addEventListener('focus', updateMinimumPublishTime);
 $('publishAt').addEventListener('input', updatePreview);
+updateMinimumPublishTime();
+updatePreview();
+function updateMinimumPublishTime() {
+  const minMs = Date.now() + 3 * 3600 * 1000;
+  const stepMs = 15 * 60 * 1000;
+  $('publishAt').min = utcToEtInputValue(new Date(Math.ceil(minMs / stepMs) * stepMs));
+}
 function updatePreview() {
   const utc = etInputToUtc($('publishAt').value);
   const el = $('publishPreview');
-  if (!utc) { el.textContent = ''; return; }
+  el.classList.remove('ok', 'warn');
+  if (!utc) {
+    el.textContent = 'Select a publish date and time.';
+    return;
+  }
   const err = validatePublish(utc);
-  el.textContent = err ? '⚠ ' + err : `Will publish at ${formatEt(utc)}  (${utc.toUTCString()})`;
-  el.style.color = err ? 'var(--warn)' : 'var(--muted)';
+  el.textContent = err ? err : `Will publish at ${formatEt(utc)} (${utc.toUTCString()})`;
+  el.classList.add(err ? 'warn' : 'ok');
 }
 
 $('scheduleBtn').addEventListener('click', async () => {
