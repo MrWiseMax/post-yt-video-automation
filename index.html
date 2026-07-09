@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouTube Scheduler</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▶️</text></svg>" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <h1><span class="logo">▶</span> YouTube Scheduler</h1>
+      <button id="signOutBtn" class="hidden">Sign out</button>
+    </header>
+
+    <!-- LOGIN -->
+    <section id="loginView" class="card hidden">
+      <h2>Sign in</h2>
+      <p class="hint">Enter your email and we'll send a one-tap magic link.</p>
+      <label for="loginEmail">Email</label>
+      <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com" />
+      <button id="loginBtn" class="primary block">Send magic link</button>
+      <div id="loginMsg" class="msg"></div>
+    </section>
+
+    <!-- APP -->
+    <main id="appView" class="hidden">
+      <div class="tabs">
+        <button id="tabSchedule" class="active">Schedule</button>
+        <button id="tabSettings">Settings</button>
+      </div>
+
+      <!-- SCHEDULE -->
+      <section id="scheduleView">
+        <div class="card">
+          <h2>Process &amp; Schedule a Video</h2>
+          <p class="hint">
+            Put <strong>3 files</strong> in your Drive folder first —
+            <code>Title.mp4</code> (the filename becomes the video title),
+            <code>Title.png</code> (thumbnail), and a <code>.srt</code> (captions).
+            Then pick a target time (Eastern Time, at least ~3 hours out).
+          </p>
+
+          <label for="publishAt">Target date &amp; time (Eastern Time)</label>
+          <input id="publishAt" type="datetime-local" />
+          <div id="publishPreview" class="small" style="margin-top:6px;"></div>
+
+          <button id="scheduleBtn" class="primary block">Process &amp; Schedule Video</button>
+          <div id="scheduleMsg" class="msg"></div>
+        </div>
+
+        <div class="card">
+          <h2>Recent videos</h2>
+          <p class="hint">Auto-refreshes. Status: queued → processing → scheduled → posted.</p>
+          <div id="videoList" class="list"><div class="small">Loading…</div></div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="settingsView" class="hidden">
+        <div class="card">
+          <h2>Channel settings</h2>
+          <p class="hint">Entered once. Used for every upload.</p>
+
+          <label for="driveFolder">Google Drive folder ID</label>
+          <input id="driveFolder" type="text" placeholder="1AbCdEf... (from the folder URL)" />
+
+          <label for="channelTags">Channel tags (always included) — comma separated</label>
+          <textarea id="channelTags" placeholder="productivity, self improvement, mindset"></textarea>
+
+          <label for="sample1">Sample tag set #1 (style reference for Claude)</label>
+          <textarea id="sample1" placeholder="tags from one of your best videos, comma separated"></textarea>
+          <label for="sample2">Sample tag set #2</label>
+          <textarea id="sample2"></textarea>
+          <label for="sample3">Sample tag set #3</label>
+          <textarea id="sample3"></textarea>
+
+          <label for="footer">Description footer (your links / CTA)</label>
+          <textarea id="footer" placeholder="🔔 Subscribe: ...&#10;📷 Instagram: ..."></textarea>
+
+          <div class="row">
+            <div>
+              <label for="categoryId">YouTube category ID</label>
+              <input id="categoryId" type="text" value="22" />
+            </div>
+            <div>
+              <label for="captionLang">Caption language</label>
+              <input id="captionLang" type="text" value="en" />
+            </div>
+          </div>
+
+          <button id="saveSettingsBtn" class="primary block">Save settings</button>
+          <div id="settingsMsg" class="msg"></div>
+        </div>
+      </section>
+    </main>
+
+    <p class="center small" style="margin-top:30px;">
+      Static app on GitHub Pages · state in Supabase · uploads via GitHub Actions.
+    </p>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

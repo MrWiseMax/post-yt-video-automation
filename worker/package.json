@@ -1,0 +1,16 @@
+{
+  "name": "yt-video-automation-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GitHub Actions worker: reads Drive, generates metadata with Claude, uploads & schedules to YouTube, notifies via Telegram.",
+  "scripts": {
+    "process": "node src/process.js",
+    "check-live": "node src/check-live.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "@supabase/supabase-js": "^2",
+    "googleapis": "latest"
+  }
+}
