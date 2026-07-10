@@ -23,6 +23,7 @@ export async function uploadVideo(yt, { title, description, tags, categoryId, la
         privacyStatus: 'private', // required when publishAt is set
         publishAt, // RFC3339 UTC, e.g. 2026-07-10T18:00:00.000Z
         selfDeclaredMadeForKids: false,
+        containsSyntheticMedia: false, // Studio "AI use" disclosure -> No
       },
     },
     media: { mimeType: 'video/*', body: fs.createReadStream(videoPath) },

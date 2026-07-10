@@ -58,9 +58,6 @@ async function main() {
   const title = files.mp4.name.replace(/\.mp4$/i, '').trim();
   await supabase.from(VIDEOS_TABLE).update({ title, updated_at: now() }).eq('id', VIDEO_ID);
 
-  // Message 1 (processing) — sent as soon as we know the title.
-  await sendTelegram(`Video is processing to upload with title of ${title}`);
-
   // 3. Re-validate the publish time server-side (>= ~3h out, not in the past).
   const publishAt = new Date(video.publish_at);
   const minTime = Date.now() + 3 * 3600 * 1000 - 90 * 1000; // ~3h with a small slack
@@ -126,9 +123,9 @@ async function main() {
     .update({ status: 'scheduled', youtube_video_id: youtubeVideoId, error: null, updated_at: now() })
     .eq('id', VIDEO_ID);
 
-  // Message 2 (uploaded + scheduled).
+  // Uploaded + scheduled notification.
   await sendTelegram(
-    `Video is uploaded successfully and waiting for the target time to post with title of ${title}`
+    `✅⏰ Video uploaded successfully and scheduled to post: ${title}`
   );
 
   // 8. Delete Drive files ONLY after confirmed success. Failure here doesn't fail the job.
@@ -163,7 +160,7 @@ main().catch(async (err) => {
     console.error('Failure handler: could not update Supabase row:', inner);
   }
   try {
-    await sendTelegram(`Upload failed${title ? ` for "${title}"` : ''}: ${String(err.message || err)}`);
+    await sendTelegram(`❌ Upload failed${title ? ` for "${title}"` : ''}: ${String(err.message || err)}`);
   } catch (inner) {
     console.error('Failure handler: could not send Telegram message:', inner);
   }

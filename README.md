@@ -10,9 +10,9 @@ Drop 3 files in a Google Drive folder, pick a time in the web app, click one but
    - `Transcript.srt` - English captions + timestamps. Any `.srt` filename works.
 2. In the web app: pick a **target day + time (Eastern Time)** at least about 3 hours out, click **Process & Schedule Video**.
 3. Watch Telegram:
-   - `Video is processing to upload with title of ...`
-   - `Video is uploaded successfully and waiting for the target time to post with title of ...`
-   - `Video is posted successfully with title of ...` once it is confirmed live.
+   - `✅⏰ Video uploaded successfully and scheduled to post: ...`
+   - `🎉🔴 Video is now live: ...` once it is confirmed public.
+   - `❌ Upload failed ...` only if something went wrong.
 
 That's it. The Drive files are deleted **only after** a confirmed successful upload, leaving the folder empty for your next video.
 
@@ -23,7 +23,18 @@ That's it. The Drive files are deleted **only after** a confirmed successful upl
 - Metadata is framed as **How-To** content.
 - **Final tags** = your saved channel tags + Education/How-To helper tags + Claude's tags, deduped and trimmed to YouTube's 500-character limit.
 - **Final description** = Claude's description + chapters + your saved footer, trimmed to 5000 characters.
-- **YouTube Data API v3:** uploads as *private* with `publishAt` = your chosen time, uses category **Education** (`27`), sets thumbnail, and uploads the `.srt` as an English caption track.
+- **YouTube Data API v3:** uploads as *private* with `publishAt` = your chosen time, uses category **Education** (`27`), answers the Studio "AI use" disclosure with **No**, sets thumbnail (auto-shrunk to fit YouTube's 2 MB limit), and uploads the `.srt` as an English caption track.
+
+### Settings the YouTube API cannot set (do these once per video in Studio)
+
+The YouTube Data API does not expose these Studio options, so set them manually after the upload is scheduled (Studio -> Content -> the video):
+
+| Setting | Wanted value | Why manual |
+|---|---|---|
+| Ads / monetization | ON | Monetization is only available through YouTube's partner-facing Content ID API for CMS accounts, not the public Data API. |
+| Allow automatic concepts | Unchecked | Studio-only experiment feature; no API field. |
+| Learning content Type | How-To | The Education "Type/Problems/Level/Exam" fields are Studio-only learning metadata; no API field. |
+| Academic system | None | Same Studio-only learning metadata. |
 - **Supabase** records every video: queued -> processing -> scheduled -> posted / failed.
 
 ## Architecture
