@@ -39,7 +39,8 @@ async function main() {
     .select('*')
     .eq('id', VIDEO_ID)
     .single();
-  if (vErr || !video) throw new Error('Video row not found: ' + VIDEO_ID);
+  if (vErr) throw new Error(`Failed to load video row ${VIDEO_ID}: ${vErr.message} (code ${vErr.code || 'n/a'})`);
+  if (!video) throw new Error('Video row not found: ' + VIDEO_ID);
   if (video.status !== 'queued') {
     console.log(`Video ${VIDEO_ID} is '${video.status}', not 'queued' — skipping.`);
     return;
