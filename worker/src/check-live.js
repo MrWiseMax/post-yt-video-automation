@@ -29,7 +29,7 @@ async function main() {
       const status = await getPrivacyStatus(yt, v.youtube_video_id);
       if (status === 'public') {
         await supabase.from(VIDEOS_TABLE).update({ status: 'posted', updated_at: now() }).eq('id', v.id);
-        await sendTelegram(`🎉🔴 Video is now live: ${v.title}`);
+        await sendTelegram(`✅ Video is now live: ${v.title}`);
         console.log(`Posted: ${v.title}`);
       } else {
         console.log(`Not live yet (${status}): ${v.title}`);

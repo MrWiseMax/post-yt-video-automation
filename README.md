@@ -10,8 +10,8 @@ Drop 3 files in a Google Drive folder, pick a time in the web app, click one but
    - `Transcript.srt` - English captions + timestamps. Any `.srt` filename works.
 2. In the web app: pick a **target day + time (Eastern Time)** at least about 3 hours out, click **Process & Schedule Video**.
 3. Watch Telegram:
-   - `✅⏰ Video uploaded successfully and scheduled to post: ...`
-   - `🎉🔴 Video is now live: ...` once it is confirmed public.
+   - `⏰ Video uploaded successfully and scheduled to post: ...`
+   - `✅ Video is now live: ...` once it is confirmed public.
    - `❌ Upload failed ...` only if something went wrong.
 
 That's it. The Drive files are deleted **only after** a confirmed successful upload, leaving the folder empty for your next video.

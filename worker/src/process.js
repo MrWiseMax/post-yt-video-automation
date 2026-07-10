@@ -125,7 +125,7 @@ async function main() {
 
   // Uploaded + scheduled notification.
   await sendTelegram(
-    `✅⏰ Video uploaded successfully and scheduled to post: ${title}`
+    `⏰ Video uploaded successfully and scheduled to post: ${title}`
   );
 
   // 8. Delete Drive files ONLY after confirmed success. Failure here doesn't fail the job.
