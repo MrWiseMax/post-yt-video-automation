@@ -1,4 +1,7 @@
 import fs from 'node:fs';
+import sharp from 'sharp';
+
+const THUMBNAIL_MAX_BYTES = 2 * 1024 * 1024; // YouTube rejects custom thumbnails over 2 MB
 
 /**
  * Upload the video as PRIVATE with publishAt set to the target time. YouTube
@@ -28,10 +31,29 @@ export async function uploadVideo(yt, { title, description, tags, categoryId, la
   return res.data.id;
 }
 
+/**
+ * Re-encode the thumbnail as a 1280x720 JPEG when the source PNG exceeds
+ * YouTube's 2 MB limit (a 1080p+ PNG easily does).
+ * Returns { path, mimeType } of the file to upload.
+ */
+async function prepareThumbnail(pngPath) {
+  if (fs.statSync(pngPath).size <= THUMBNAIL_MAX_BYTES) {
+    return { path: pngPath, mimeType: 'image/png' };
+  }
+  const jpgPath = pngPath.replace(/\.png$/i, '') + '.thumb.jpg';
+  for (const quality of [90, 80, 70]) {
+    await sharp(pngPath).resize(1280, 720, { fit: 'cover' }).jpeg({ quality }).toFile(jpgPath);
+    if (fs.statSync(jpgPath).size <= THUMBNAIL_MAX_BYTES) break;
+  }
+  console.log(`Thumbnail over 2 MB; re-encoded to ${jpgPath} (${fs.statSync(jpgPath).size} bytes).`);
+  return { path: jpgPath, mimeType: 'image/jpeg' };
+}
+
 export async function setThumbnail(yt, videoId, pngPath) {
+  const thumb = await prepareThumbnail(pngPath);
   await yt.thumbnails.set({
     videoId,
-    media: { mimeType: 'image/png', body: fs.createReadStream(pngPath) },
+    media: { mimeType: thumb.mimeType, body: fs.createReadStream(thumb.path) },
   });
 }
 

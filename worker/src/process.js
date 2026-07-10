@@ -41,8 +41,9 @@ async function main() {
     .single();
   if (vErr) throw new Error(`Failed to load video row ${VIDEO_ID}: ${vErr.message} (code ${vErr.code || 'n/a'})`);
   if (!video) throw new Error('Video row not found: ' + VIDEO_ID);
-  if (video.status !== 'queued') {
-    console.log(`Video ${VIDEO_ID} is '${video.status}', not 'queued' — skipping.`);
+  // 'queued' is the normal path; 'failed' allows an explicit retry dispatch.
+  if (video.status !== 'queued' && video.status !== 'failed') {
+    console.log(`Video ${VIDEO_ID} is '${video.status}', not 'queued'/'failed' — skipping.`);
     return;
   }
   await supabase.from(VIDEOS_TABLE).update({ status: 'processing', updated_at: now() }).eq('id', VIDEO_ID);
@@ -68,40 +69,54 @@ async function main() {
     throw new Error('Target time must be at least ~3 hours in the future (YouTube needs processing time).');
   }
 
-  // 4. Download the 3 files.
+  // 4. Download the files (skip the big .mp4 when resuming a partial upload).
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'yt-'));
   const mp4Path = path.join(tmp, 'video.mp4');
   const pngPath = path.join(tmp, 'thumb.png');
   const srtPath = path.join(tmp, 'captions.srt');
-  await drive.downloadFile(d, files.mp4.id, mp4Path);
   await drive.downloadFile(d, files.png.id, pngPath);
   await drive.downloadFile(d, files.srt.id, srtPath);
 
-  // 5. Transcript -> Claude -> metadata.
-  const cues = parseSrt(fs.readFileSync(srtPath, 'utf8'));
-  if (cues.length === 0) throw new Error('Could not parse any cues from the .srt file.');
-  const timedTranscript = buildTimedTranscript(cues);
-
-  const channelTags = splitTags(settings.channel_tags);
-  const sampleTagsets = Array.isArray(settings.sample_tagsets) ? settings.sample_tagsets : [];
-
-  const ai = await generateContent({ title, timedTranscript, sampleTagsets, videoType: VIDEO_TYPE });
-
-  const chapters = buildChapters(ai.chapters, cues);
-  const finalTags = buildTags([...channelTags, ...VIDEO_TYPE_TAGS], ai.tags, 500);
-  const description = assembleDescription(ai.description, chapters, settings.description_footer);
-
-  // 6. Upload + schedule on YouTube.
   const yt = youtubeClient();
-  const youtubeVideoId = await uploadVideo(yt, {
-    title,
-    description,
-    tags: finalTags,
-    categoryId: YOUTUBE_CATEGORY_ID,
-    language: CAPTION_LANGUAGE,
-    publishAt: publishAt.toISOString(),
-    videoPath: mp4Path,
-  });
+  let youtubeVideoId = video.youtube_video_id || null;
+
+  if (!youtubeVideoId) {
+    await drive.downloadFile(d, files.mp4.id, mp4Path);
+
+    // 5. Transcript -> Claude -> metadata.
+    const cues = parseSrt(fs.readFileSync(srtPath, 'utf8'));
+    if (cues.length === 0) throw new Error('Could not parse any cues from the .srt file.');
+    const timedTranscript = buildTimedTranscript(cues);
+
+    const channelTags = splitTags(settings.channel_tags);
+    const sampleTagsets = Array.isArray(settings.sample_tagsets) ? settings.sample_tagsets : [];
+
+    const ai = await generateContent({ title, timedTranscript, sampleTagsets, videoType: VIDEO_TYPE });
+
+    const chapters = buildChapters(ai.chapters, cues);
+    const finalTags = buildTags([...channelTags, ...VIDEO_TYPE_TAGS], ai.tags, 500);
+    const description = assembleDescription(ai.description, chapters, settings.description_footer);
+
+    // 6. Upload + schedule on YouTube. Record the id IMMEDIATELY so a later
+    // failure (thumbnail, captions) can never orphan the uploaded video —
+    // a retry resumes from here instead of uploading a duplicate.
+    youtubeVideoId = await uploadVideo(yt, {
+      title,
+      description,
+      tags: finalTags,
+      categoryId: YOUTUBE_CATEGORY_ID,
+      language: CAPTION_LANGUAGE,
+      publishAt: publishAt.toISOString(),
+      videoPath: mp4Path,
+    });
+    await supabase
+      .from(VIDEOS_TABLE)
+      .update({ youtube_video_id: youtubeVideoId, updated_at: now() })
+      .eq('id', VIDEO_ID);
+  } else {
+    console.log(`Video already uploaded as ${youtubeVideoId} — resuming with thumbnail + captions.`);
+  }
+
   await setThumbnail(yt, youtubeVideoId, pngPath);
   await uploadCaptions(yt, youtubeVideoId, srtPath, CAPTION_LANGUAGE);
 
