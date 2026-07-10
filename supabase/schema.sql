@@ -115,10 +115,34 @@ grant select, insert, update, delete on table public.post_yt_vido_automation_vid
 
 drop policy if exists "authenticated settings" on public.post_yt_vido_automation_settings;
 create policy "authenticated settings" on public.post_yt_vido_automation_settings
-  for all to authenticated using (true) with check (true);
+  for all to authenticated
+  using (
+    lower(coalesce(auth.jwt() ->> 'email', '')) in (
+      'mrwisemikeyt@gmail.com',
+      'ahmedzuhairyoutube@gmail.com'
+    )
+  )
+  with check (
+    lower(coalesce(auth.jwt() ->> 'email', '')) in (
+      'mrwisemikeyt@gmail.com',
+      'ahmedzuhairyoutube@gmail.com'
+    )
+  );
 
 drop policy if exists "authenticated videos" on public.post_yt_vido_automation_videos;
 create policy "authenticated videos" on public.post_yt_vido_automation_videos
-  for all to authenticated using (true) with check (true);
+  for all to authenticated
+  using (
+    lower(coalesce(auth.jwt() ->> 'email', '')) in (
+      'mrwisemikeyt@gmail.com',
+      'ahmedzuhairyoutube@gmail.com'
+    )
+  )
+  with check (
+    lower(coalesce(auth.jwt() ->> 'email', '')) in (
+      'mrwisemikeyt@gmail.com',
+      'ahmedzuhairyoutube@gmail.com'
+    )
+  );
 
 -- post_yt_vido_automation_app_config: intentionally no policies.

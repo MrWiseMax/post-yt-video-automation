@@ -8,9 +8,13 @@
     "process": "node src/process.js",
     "check-live": "node src/check-live.js"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
-    "@anthropic-ai/sdk": "latest",
-    "@supabase/supabase-js": "^2",
-    "googleapis": "latest"
+    "@anthropic-ai/sdk": "^0.110.0",
+    "@supabase/supabase-js": "^2.110.2",
+    "googleapis": "^173.0.0",
+    "ws": "^8.21.0"
   }
 }

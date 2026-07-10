@@ -130,10 +130,12 @@ async function main() {
 
 main().catch(async (err) => {
   console.error('process.js failed:', err);
+  // Mark the row failed and notify independently, so one failing step
+  // can never leave the video silently stuck in 'queued'.
+  let title = '';
   try {
-    const supabase = getSupabase();
-    let title = '';
     if (VIDEO_ID) {
+      const supabase = getSupabase();
       const { data } = await supabase.from(VIDEOS_TABLE).select('title').eq('id', VIDEO_ID).single();
       title = data?.title || '';
       await supabase
@@ -141,9 +143,13 @@ main().catch(async (err) => {
         .update({ status: 'failed', error: String(err.message || err), updated_at: now() })
         .eq('id', VIDEO_ID);
     }
+  } catch (inner) {
+    console.error('Failure handler: could not update Supabase row:', inner);
+  }
+  try {
     await sendTelegram(`Upload failed${title ? ` for "${title}"` : ''}: ${String(err.message || err)}`);
   } catch (inner) {
-    console.error('Failure handler error:', inner);
+    console.error('Failure handler: could not send Telegram message:', inner);
   }
   process.exit(1);
 });

@@ -9,4 +9,11 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Optional: pre-fill the login email box.
 export const OWNER_EMAIL = 'mrwisemikeyt@gmail.com';
 
+// The only Google accounts allowed to use this app. Must match the RLS
+// policies in supabase/schema.sql — update both together.
+export const ALLOWED_EMAILS = [
+  'mrwisemikeyt@gmail.com',
+  'ahmedzuhairyoutube@gmail.com',
+];
+
 export const TIMEZONE = 'America/New_York';

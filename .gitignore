@@ -1,6 +1,5 @@
 node_modules/
 worker/node_modules/
-worker/package-lock.json
 supabase/.temp/
 *.log
 .DS_Store
@@ -9,3 +8,6 @@ supabase/.temp/
 # never commit credentials
 *service-account*.json
 google-service-account*.json
+
+# local sample media (1.7 GB) - never commit
+Google Drive Folder Content Example/

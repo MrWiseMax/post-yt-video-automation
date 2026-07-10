@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, OWNER_EMAIL } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, OWNER_EMAIL, ALLOWED_EMAILS } from './config.js';
 import { etInputToUtc, formatEt, utcToEtInputValue, validatePublish } from './time.js';
 
 const $ = (id) => document.getElementById(id);
@@ -7,6 +7,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const supabaseProjectRef = new URL(SUPABASE_URL).hostname.split('.')[0];
 const SETTINGS_TABLE = 'post_yt_vido_automation_settings';
 const VIDEOS_TABLE = 'post_yt_vido_automation_videos';
+const ALLOWED_EMAIL_SET = new Set(ALLOWED_EMAILS.map((e) => e.trim().toLowerCase()));
 
 let refreshTimer = null;
 let settingsLoadedForUserId = null;
@@ -72,7 +73,8 @@ function clearUrlHash() {
 }
 
 function render(session) {
-  const authed = !!session;
+  const allowed = isAllowedEmail(session?.user?.email);
+  const authed = !!session && allowed;
   const userId = session?.user?.id || null;
   $('loginView').classList.toggle('hidden', authed);
   $('appView').classList.toggle('hidden', !authed);
@@ -89,6 +91,10 @@ function render(session) {
       refreshTimer = null;
     }
   }
+  if (session && !allowed) {
+    supabase.auth.signOut();
+    setMsg($('loginMsg'), 'This email is not allowed to access this app.', 'err');
+  }
 }
 
 $('loginEmail').value = OWNER_EMAIL || '';
@@ -97,10 +103,14 @@ $('loginBtn').addEventListener('click', async () => {
   const email = $('loginEmail').value.trim();
   const msg = $('loginMsg');
   if (!email) return setMsg(msg, 'Enter your email.', 'err');
+  if (!isAllowedEmail(email)) return setMsg(msg, 'This email is not allowed to access this app.', 'err');
   $('loginBtn').disabled = true;
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: window.location.href.split('#')[0] },
+    options: {
+      emailRedirectTo: window.location.href.split('#')[0],
+      shouldCreateUser: false, // both allowed accounts already exist; signups are disabled
+    },
   });
   $('loginBtn').disabled = false;
   setMsg(msg, error ? error.message : 'Check your email for the magic link.', error ? 'err' : 'ok');
@@ -214,7 +224,7 @@ async function loadVideos() {
     .order('created_at', { ascending: false })
     .limit(12);
   const list = $('videoList');
-  if (error) { list.innerHTML = `<div class="msg err">${error.message}</div>`; return; }
+  if (error) { list.innerHTML = `<div class="msg err">${escapeHtml(error.message)}</div>`; return; }
   if (!data || data.length === 0) { list.innerHTML = '<div class="small">No videos yet.</div>'; return; }
 
   list.innerHTML = data
@@ -242,6 +252,9 @@ async function loadVideos() {
 function setMsg(el, text, kind) {
   el.textContent = text;
   el.className = 'msg ' + (kind || '');
+}
+function isAllowedEmail(email) {
+  return ALLOWED_EMAIL_SET.has(String(email || '').trim().toLowerCase());
 }
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
