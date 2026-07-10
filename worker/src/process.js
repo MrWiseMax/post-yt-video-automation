@@ -17,6 +17,8 @@ const CAPTION_LANGUAGE = 'en';
 const YOUTUBE_CATEGORY_ID = '27'; // Education
 const VIDEO_TYPE = 'How-To';
 const VIDEO_TYPE_TAGS = ['education', 'how to', 'tutorial'];
+const SETTINGS_TABLE = 'post_yt_vido_automation_settings';
+const VIDEOS_TABLE = 'post_yt_vido_automation_videos';
 const now = () => new Date().toISOString();
 
 function splitTags(s) {
@@ -33,7 +35,7 @@ async function main() {
 
   // 1. Load the job.
   const { data: video, error: vErr } = await supabase
-    .from('videos')
+    .from(VIDEOS_TABLE)
     .select('*')
     .eq('id', VIDEO_ID)
     .single();
@@ -42,17 +44,17 @@ async function main() {
     console.log(`Video ${VIDEO_ID} is '${video.status}', not 'queued' — skipping.`);
     return;
   }
-  await supabase.from('videos').update({ status: 'processing', updated_at: now() }).eq('id', VIDEO_ID);
+  await supabase.from(VIDEOS_TABLE).update({ status: 'processing', updated_at: now() }).eq('id', VIDEO_ID);
 
   // 2. Settings + Drive folder.
-  const { data: settings } = await supabase.from('settings').select('*').eq('id', 1).single();
+  const { data: settings } = await supabase.from(SETTINGS_TABLE).select('*').eq('id', 1).single();
   const folderId = settings?.drive_folder_id;
   if (!folderId) throw new Error('drive_folder_id is not set in Settings.');
 
   const d = driveClient();
   const files = await drive.findFiles(d, folderId);
   const title = files.mp4.name.replace(/\.mp4$/i, '').trim();
-  await supabase.from('videos').update({ title, updated_at: now() }).eq('id', VIDEO_ID);
+  await supabase.from(VIDEOS_TABLE).update({ title, updated_at: now() }).eq('id', VIDEO_ID);
 
   // Message 1 (processing) — sent as soon as we know the title.
   await sendTelegram(`Video is processing to upload with title of ${title}`);
@@ -104,7 +106,7 @@ async function main() {
 
   // 7. Record success.
   await supabase
-    .from('videos')
+    .from(VIDEOS_TABLE)
     .update({ status: 'scheduled', youtube_video_id: youtubeVideoId, error: null, updated_at: now() })
     .eq('id', VIDEO_ID);
 
@@ -132,10 +134,10 @@ main().catch(async (err) => {
     const supabase = getSupabase();
     let title = '';
     if (VIDEO_ID) {
-      const { data } = await supabase.from('videos').select('title').eq('id', VIDEO_ID).single();
+      const { data } = await supabase.from(VIDEOS_TABLE).select('title').eq('id', VIDEO_ID).single();
       title = data?.title || '';
       await supabase
-        .from('videos')
+        .from(VIDEOS_TABLE)
         .update({ status: 'failed', error: String(err.message || err), updated_at: now() })
         .eq('id', VIDEO_ID);
     }

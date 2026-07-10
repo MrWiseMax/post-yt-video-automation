@@ -53,7 +53,7 @@ Legend: 🟦 = value you'll copy into a secret later.
 3. **SQL Editor → New query** → paste the entire contents of [`supabase/schema.sql`](supabase/schema.sql) → **Run**. This creates the tables, security rules, and the "button → GitHub" trigger, and enables the `pg_net` extension.
 4. In that same SQL editor, run **one** insert with your GitHub details + a token (from step 5 below). This stays only in your database:
    ```sql
-   insert into app_config (id, github_owner, github_repo, github_pat)
+   insert into post_yt_vido_automation_app_config (id, github_owner, github_repo, github_pat)
    values (1, 'YOUR_GH_USERNAME', 'YOUR_REPO_NAME', 'ghp_YOUR_FINE_GRAINED_TOKEN')
    on conflict (id) do update set
      github_owner = excluded.github_owner,

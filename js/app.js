@@ -5,6 +5,8 @@ import { etInputToUtc, formatEt, utcToEtInputValue, validatePublish } from './ti
 const $ = (id) => document.getElementById(id);
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const supabaseProjectRef = new URL(SUPABASE_URL).hostname.split('.')[0];
+const SETTINGS_TABLE = 'post_yt_vido_automation_settings';
+const VIDEOS_TABLE = 'post_yt_vido_automation_videos';
 
 let refreshTimer = null;
 let settingsLoadedForUserId = null;
@@ -120,7 +122,7 @@ function switchTab(which) {
 // ── Settings ──────────────────────────────────────────────────────────────
 async function loadSettings(userId) {
   settingsLoadingForUserId = userId;
-  const { data, error } = await supabase.from('settings').select('*').eq('id', 1).single();
+  const { data, error } = await supabase.from(SETTINGS_TABLE).select('*').eq('id', 1).single();
   if (error || !data) {
     settingsLoadingForUserId = null;
     return;
@@ -147,7 +149,7 @@ $('saveSettingsBtn').addEventListener('click', async () => {
     description_footer: $('footer').value,
     updated_at: new Date().toISOString(),
   };
-  const { error } = await supabase.from('settings').upsert(payload, { onConflict: 'id' });
+  const { error } = await supabase.from(SETTINGS_TABLE).upsert(payload, { onConflict: 'id' });
   $('saveSettingsBtn').disabled = false;
   setMsg(msg, error ? error.message : 'Settings saved.', error ? 'err' : 'ok');
 });
@@ -183,7 +185,7 @@ $('scheduleBtn').addEventListener('click', async () => {
   if (err) return setMsg(msg, err, 'err');
 
   // Guard: Drive folder must be configured.
-  const { data: settings } = await supabase.from('settings').select('drive_folder_id').eq('id', 1).single();
+  const { data: settings } = await supabase.from(SETTINGS_TABLE).select('drive_folder_id').eq('id', 1).single();
   if (!settings?.drive_folder_id) {
     switchTab('settings');
     return setMsg($('settingsMsg'), 'Set your Drive folder ID first, then schedule.', 'err');
@@ -191,7 +193,7 @@ $('scheduleBtn').addEventListener('click', async () => {
 
   $('scheduleBtn').disabled = true;
   setMsg(msg, 'Queuing…', 'info');
-  const { error } = await supabase.from('videos').insert({
+  const { error } = await supabase.from(VIDEOS_TABLE).insert({
     status: 'queued',
     publish_at: utc.toISOString(),
   });
@@ -207,7 +209,7 @@ $('scheduleBtn').addEventListener('click', async () => {
 // ── Recent videos ─────────────────────────────────────────────────────────
 async function loadVideos() {
   const { data, error } = await supabase
-    .from('videos')
+    .from(VIDEOS_TABLE)
     .select('*')
     .order('created_at', { ascending: false })
     .limit(12);
