@@ -1,5 +1,5 @@
 -- ============================================================================
--- YouTube Automation - Supabase schema
+-- Post YT Video Automation - Supabase schema
 -- Run this whole file once in: Supabase -> SQL Editor -> New query -> Run.
 -- ============================================================================
 
