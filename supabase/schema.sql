@@ -113,6 +113,13 @@ grant usage on schema public to authenticated;
 grant select, insert, update, delete on table public.post_yt_vido_automation_settings to authenticated;
 grant select, insert, update, delete on table public.post_yt_vido_automation_videos to authenticated;
 
+-- The GitHub Actions workers connect with the service_role key. service_role
+-- bypasses RLS but still needs plain table privileges (this project does not
+-- have Supabase's usual default grants).
+grant usage on schema public to service_role;
+grant select, insert, update, delete on table public.post_yt_vido_automation_settings to service_role;
+grant select, insert, update, delete on table public.post_yt_vido_automation_videos to service_role;
+
 drop policy if exists "authenticated settings" on public.post_yt_vido_automation_settings;
 create policy "authenticated settings" on public.post_yt_vido_automation_settings
   for all to authenticated
