@@ -58,6 +58,25 @@ async function main() {
   const title = files.mp4.name.replace(/\.mp4$/i, '').trim();
   await supabase.from(VIDEOS_TABLE).update({ title, updated_at: now() }).eq('id', VIDEO_ID);
 
+  // Drive files are never deleted, so a forgotten folder cleanup would other-
+  // wise re-upload the previous video. Refuse if this exact title already
+  // reached YouTube from an earlier job.
+  if (!video.youtube_video_id) {
+    const { data: earlier } = await supabase
+      .from(VIDEOS_TABLE)
+      .select('id, youtube_video_id')
+      .eq('title', title)
+      .not('youtube_video_id', 'is', null)
+      .neq('id', VIDEO_ID)
+      .limit(1);
+    if (earlier && earlier.length > 0) {
+      throw new Error(
+        `"${title}" was already uploaded to YouTube (${earlier[0].youtube_video_id}). ` +
+          'Replace the files in your Drive folder with the next video before scheduling again.'
+      );
+    }
+  }
+
   // 3. Re-validate the publish time server-side (>= ~3h out, not in the past).
   const publishAt = new Date(video.publish_at);
   const minTime = Date.now() + 3 * 3600 * 1000 - 90 * 1000; // ~3h with a small slack
@@ -91,7 +110,11 @@ async function main() {
     const ai = await generateContent({ title, timedTranscript, sampleTagsets, videoType: VIDEO_TYPE });
 
     const chapters = buildChapters(ai.chapters, cues);
-    const finalTags = buildTags([...channelTags, ...VIDEO_TYPE_TAGS], ai.tags, 500);
+    // Claude's transcript-derived tags come first so this video's own topic
+    // always makes it into the 500-char budget; the generic How-To tags only
+    // fill whatever space is left over.
+    const finalTags = buildTags(channelTags, [...ai.tags, ...VIDEO_TYPE_TAGS], 500);
+    console.log(`Tags (${finalTags.length}): ${finalTags.join(', ')}`);
     const description = assembleDescription(ai.description, chapters, settings.description_footer);
 
     // 6. Upload + schedule on YouTube. Record the id IMMEDIATELY so a later
@@ -128,15 +151,9 @@ async function main() {
     `⏰ Video uploaded successfully and scheduled to post: ${title}`
   );
 
-  // 8. Delete Drive files ONLY after confirmed success. Failure here doesn't fail the job.
-  for (const f of [files.mp4, files.png, files.srt]) {
-    try {
-      await drive.deleteFile(d, f.id);
-    } catch (e) {
-      console.error(`Warning: failed to delete Drive file ${f.name}: ${e.message}`);
-    }
-  }
-
+  // 8. Drive files are intentionally left in place — nothing is ever deleted
+  // from your drop folder. Clear it yourself before posting the next video;
+  // the duplicate guard above will stop an accidental re-upload if you forget.
   fs.rmSync(tmp, { recursive: true, force: true });
   console.log(`Done. youtube_video_id=${youtubeVideoId}, publishAt=${publishAt.toISOString()}`);
 }

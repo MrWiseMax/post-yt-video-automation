@@ -1,6 +1,6 @@
 # YouTube Long-Form Automation
 
-Drop 3 files in a Google Drive folder, pick a time in the web app, click one button. The system writes SEO metadata, uploads and schedules the video as private until publish time, sets the thumbnail, uploads English captions, cleans up Drive, and pings you on Telegram at each stage.
+Drop 3 files in a Google Drive folder, pick a time in the web app, click one button. The system writes SEO metadata, uploads and schedules the video as private until publish time, sets the thumbnail, uploads English captions, and pings you on Telegram.
 
 ## How to post a video
 
@@ -14,14 +14,14 @@ Drop 3 files in a Google Drive folder, pick a time in the web app, click one but
    - `✅ Video is now live: ...` once it is confirmed public.
    - `❌ Upload failed ...` only if something went wrong.
 
-That's it. The Drive files are deleted **only after** a confirmed successful upload, leaving the folder empty for your next video.
+That's it. **The Drive files are never deleted** — nothing is removed from your folder. Replace them with the next video's files before scheduling again; if you forget, the worker refuses the job instead of re-uploading the same video.
 
 ## What's Automated
 
 - Reads the Drive folder; **title = the `.mp4` filename**.
 - **Claude API** turns the `.srt` into an SEO description, video-specific tags, and chapters built from the `.srt` timestamps.
 - Metadata is framed as **How-To** content.
-- **Final tags** = your saved channel tags + Education/How-To helper tags + Claude's tags, deduped and trimmed to YouTube's 500-character limit.
+- **Final tags** = video-specific tags Claude derived from *this* video's `.srt`, plus your channel tags, deduped and trimmed to YouTube's 500-character limit. Channel tags are capped at ~180 characters so a long channel-tag list can never crowd out the video's own topic (they used to consume the entire budget, which made every upload share one identical tag set).
 - **Final description** = Claude's description + chapters + your saved footer, trimmed to 5000 characters.
 - **YouTube Data API v3:** uploads as *private* with `publishAt` = your chosen time, uses category **Education** (`27`), answers the Studio "AI use" disclosure with **No**, sets thumbnail (auto-shrunk to fit YouTube's 2 MB limit), and uploads the `.srt` as an English caption track.
 
@@ -82,5 +82,6 @@ Browser access is limited to these emails (both accounts share the exact same ap
 - Captions are always English.
 - Only the two allowlisted emails can use the browser app and authenticated Supabase rows.
 - No playlists.
-- Drive files are never deleted unless the upload is confirmed.
+- Drive files are never deleted or modified; clearing the drop folder is manual.
+- The same video title can never be uploaded twice.
 - Total tags are kept at 500 characters or less.

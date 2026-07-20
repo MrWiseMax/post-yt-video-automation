@@ -39,23 +39,5 @@ export async function downloadFile(drive, fileId, destPath) {
   });
 }
 
-export async function deleteFile(drive, fileId) {
-  try {
-    await drive.files.delete({ fileId, supportsAllDrives: true });
-    return;
-  } catch (e) {
-    // In My Drive only the file's OWNER can delete or trash it; the service
-    // account is just an Editor on the drop folder. Fall through.
-  }
-  try {
-    await drive.files.update({ fileId, requestBody: { trashed: true }, supportsAllDrives: true });
-    return;
-  } catch (e) {
-    // Editors can't trash other people's My Drive files either. Fall through.
-  }
-  // Last resort: pull the file out of the drop folder so the folder is empty
-  // for the next video. The file stays in the owner's Drive (orphaned).
-  const { data } = await drive.files.get({ fileId, fields: 'parents', supportsAllDrives: true });
-  if (!data.parents || data.parents.length === 0) return;
-  await drive.files.update({ fileId, removeParents: data.parents.join(','), supportsAllDrives: true });
-}
+// NOTE: there is deliberately no delete/trash helper here. The worker never
+// removes anything from the Drive drop folder — clearing it is a manual step.
