@@ -35,6 +35,11 @@ create table if not exists public.post_yt_vido_automation_videos (
   publish_at        timestamptz not null,
   youtube_video_id  text,
   error             text,
+  -- Auto-engagement. first_comment is written by Claude at upload time (while the
+  -- transcript is still in Drive) and posted later, when the video goes public.
+  first_comment     text,
+  liked_at          timestamptz,
+  comment_posted_at timestamptz,
   created_at        timestamptz default now(),
   updated_at        timestamptz default now()
 );

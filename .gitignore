@@ -3,6 +3,7 @@ worker/node_modules/
 supabase/.temp/
 *.log
 .DS_Store
+desktop.ini
 .env
 .env.*
 # never commit credentials

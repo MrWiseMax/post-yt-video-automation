@@ -73,3 +73,29 @@ export async function getPrivacyStatus(yt, videoId) {
   const res = await yt.videos.list({ part: ['status'], id: [videoId] });
   return res.data.items?.[0]?.status?.privacyStatus || null;
 }
+
+/**
+ * Like the video as the channel account. Setting a rating is idempotent —
+ * re-liking an already-liked video is a no-op, not a second like.
+ * Needs the youtube.force-ssl scope (already on the refresh token).
+ */
+export async function likeVideo(yt, videoId) {
+  await yt.videos.rate({ id: videoId, rating: 'like' });
+}
+
+/**
+ * Post a top-level comment as the channel account. Returns the comment thread id.
+ * Fails if comments are disabled on the video or held for review.
+ */
+export async function postComment(yt, videoId, text) {
+  const res = await yt.commentThreads.insert({
+    part: ['snippet'],
+    requestBody: {
+      snippet: {
+        videoId,
+        topLevelComment: { snippet: { textOriginal: text } },
+      },
+    },
+  });
+  return res.data.id || null;
+}

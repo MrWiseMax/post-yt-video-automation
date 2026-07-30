@@ -129,9 +129,21 @@ async function main() {
       publishAt: publishAt.toISOString(),
       videoPath: mp4Path,
     });
+    // first_comment is stored now, not when the video goes public: by then the
+    // Drive folder has usually been cleared for the next video, so the
+    // transcript this comment is based on would be gone (or worse, replaced).
+    if (ai.firstComment) {
+      console.log(`First comment (${ai.firstComment.length} chars): ${ai.firstComment}`);
+    } else {
+      console.warn('Claude returned an empty first_comment — the video will go live without one.');
+    }
     await supabase
       .from(VIDEOS_TABLE)
-      .update({ youtube_video_id: youtubeVideoId, updated_at: now() })
+      .update({
+        youtube_video_id: youtubeVideoId,
+        first_comment: ai.firstComment || null,
+        updated_at: now(),
+      })
       .eq('id', VIDEO_ID);
   } else {
     console.log(`Video already uploaded as ${youtubeVideoId} — resuming with thumbnail + captions.`);

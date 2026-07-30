@@ -20,13 +20,16 @@ const SCHEMA = {
         required: ['time_seconds', 'title'],
       },
     },
+    first_comment: { type: 'string' },
   },
-  required: ['description', 'tags', 'chapters'],
+  required: ['description', 'tags', 'chapters', 'first_comment'],
 };
 
 /**
- * Generate SEO metadata from the transcript.
- * @returns {Promise<{description:string, tags:string[], chapters:{time_seconds:number,title:string}[]}>}
+ * Generate SEO metadata + the channel's own first comment from the transcript.
+ * All of it comes from ONE call: the transcript is the bulk of the input cost,
+ * so asking for the comment here is nearly free versus a second request.
+ * @returns {Promise<{description:string, tags:string[], chapters:{time_seconds:number,title:string}[], firstComment:string}>}
  */
 export async function generateContent({ title, timedTranscript, sampleTagsets, videoType = 'How-To' }) {
   const samples = (sampleTagsets || [])
@@ -41,6 +44,13 @@ export async function generateContent({ title, timedTranscript, sampleTagsets, v
     '- description: 150-300 words. The first 2 lines are a strong hook (they show above "...more"). Natural, keyword-rich, no keyword stuffing, no hashtag spam. Do NOT include chapter timestamps or links (those are added separately).',
     '- tags: 15-30 specific, high-intent tags relevant to THIS video. Match the topical style of the sample tag sets provided, but do not copy them verbatim.',
     '- chapters: 4-8 chapters that segment the video by topic. The first chapter MUST be at time_seconds 0. Each chapter title is short (2-6 words). Pick time_seconds values that align with the [timestamp] markers in the transcript, at least ~30s apart.',
+    '- first_comment: the creator\'s own comment, posted from the channel account the moment the video goes public. Its job is to start a real conversation in the comments section.',
+    '  - Write it as the creator speaking in first person, in the same warm, plain-spoken voice as the transcript. Talk to the viewer like a person, not an audience.',
+    '  - 2 to 4 sentences, roughly 300-600 characters. Short enough that people actually read it.',
+    '  - Reference ONE specific, concrete thing from this video (a number, an example, a moment, a claim). It must be obvious this was written for THIS video and could not be copy-pasted onto another one.',
+    '  - End with ONE open question that a viewer can answer from their own experience in a single sentence. Make it easy and inviting to answer, never rhetorical, never a yes/no question.',
+    '  - Never ask for likes, subscribes, or shares. No hashtags, no links, no all-caps, no emoji spam (at most one emoji, only if it genuinely fits). Do not restate the title or summarize the whole video.',
+    '  - Never promise or imply anything the video does not actually deliver.',
     'Return only the structured JSON.',
   ].join('\n');
 
@@ -54,7 +64,7 @@ export async function generateContent({ title, timedTranscript, sampleTagsets, v
     'Timed transcript (each line: [timestamp] spoken text):',
     timedTranscript,
     '',
-    'Produce the description, tags, and chapters as structured JSON.',
+    'Produce the description, tags, chapters, and first comment as structured JSON.',
   ].join('\n');
 
   const resp = await client.messages.create({
@@ -77,5 +87,6 @@ export async function generateContent({ title, timedTranscript, sampleTagsets, v
     description: parsed.description || '',
     tags: Array.isArray(parsed.tags) ? parsed.tags : [],
     chapters: Array.isArray(parsed.chapters) ? parsed.chapters : [],
+    firstComment: (parsed.first_comment || '').trim(),
   };
 }
