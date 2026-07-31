@@ -2,6 +2,10 @@ import Anthropic from '@anthropic-ai/sdk';
 
 const client = new Anthropic(); // reads ANTHROPIC_API_KEY
 
+// Opus 5 runs thinking by default, and thinking tokens count against max_tokens —
+// so max_tokens has to cover the reasoning AND the generated metadata.
+const MODEL = 'claude-opus-5';
+
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -68,8 +72,8 @@ export async function generateContent({ title, timedTranscript, sampleTagsets, v
   ].join('\n');
 
   const resp = await client.messages.create({
-    model: 'claude-opus-4-8',
-    max_tokens: 8000,
+    model: MODEL,
+    max_tokens: 16000,
     system,
     output_config: { format: { type: 'json_schema', schema: SCHEMA } },
     messages: [{ role: 'user', content: user }],
