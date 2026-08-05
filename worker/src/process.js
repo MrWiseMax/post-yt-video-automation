@@ -97,9 +97,8 @@ async function main() {
   let youtubeVideoId = video.youtube_video_id || null;
 
   if (!youtubeVideoId) {
-    await drive.downloadFile(d, files.mp4.id, mp4Path);
-
-    // 5. Transcript -> Claude -> metadata.
+    // 5. Transcript -> Claude -> metadata. Done before the .mp4 download so a
+    // metadata failure doesn't burn several minutes pulling the video first.
     const cues = parseSrt(fs.readFileSync(srtPath, 'utf8'));
     if (cues.length === 0) throw new Error('Could not parse any cues from the .srt file.');
     const timedTranscript = buildTimedTranscript(cues);
@@ -120,6 +119,7 @@ async function main() {
     // 6. Upload + schedule on YouTube. Record the id IMMEDIATELY so a later
     // failure (thumbnail, captions) can never orphan the uploaded video —
     // a retry resumes from here instead of uploading a duplicate.
+    await drive.downloadFile(d, files.mp4.id, mp4Path);
     youtubeVideoId = await uploadVideo(yt, {
       title,
       description,

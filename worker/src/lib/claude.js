@@ -29,6 +29,33 @@ const SCHEMA = {
   required: ['description', 'tags', 'chapters', 'first_comment'],
 };
 
+// The raw SDK error is a JSON blob that ends up verbatim in the Supabase
+// `error` column and on the Recent-videos card. Translate the account-level
+// failures into something that says what to actually go fix.
+function describeClaudeError(err) {
+  const status = err?.status;
+  const apiMessage = err?.error?.error?.message || err?.message || String(err);
+
+  if (/organization has been disabled/i.test(apiMessage)) {
+    return (
+      'Anthropic rejected the request: the organization behind ANTHROPIC_API_KEY is disabled ' +
+      '(usually no credit balance or a suspended account). Add credits / re-enable the org at ' +
+      'console.anthropic.com, then update the ANTHROPIC_API_KEY repo secret if you issued a new key. ' +
+      `Original: ${apiMessage}`
+    );
+  }
+  if (status === 401) {
+    return `ANTHROPIC_API_KEY is invalid or revoked — reissue it and update the repo secret. Original: ${apiMessage}`;
+  }
+  if (status === 403) {
+    return `ANTHROPIC_API_KEY lacks access to ${MODEL}. Original: ${apiMessage}`;
+  }
+  if (status === 429) {
+    return `Anthropic rate limit hit — re-run this video in a few minutes. Original: ${apiMessage}`;
+  }
+  return `Claude metadata generation failed (${status || 'no status'}): ${apiMessage}`;
+}
+
 /**
  * Generate SEO metadata + the channel's own first comment from the transcript.
  * All of it comes from ONE call: the transcript is the bulk of the input cost,
@@ -71,13 +98,18 @@ export async function generateContent({ title, timedTranscript, sampleTagsets, v
     'Produce the description, tags, chapters, and first comment as structured JSON.',
   ].join('\n');
 
-  const resp = await client.messages.create({
-    model: MODEL,
-    max_tokens: 16000,
-    system,
-    output_config: { format: { type: 'json_schema', schema: SCHEMA } },
-    messages: [{ role: 'user', content: user }],
-  });
+  let resp;
+  try {
+    resp = await client.messages.create({
+      model: MODEL,
+      max_tokens: 16000,
+      system,
+      output_config: { format: { type: 'json_schema', schema: SCHEMA } },
+      messages: [{ role: 'user', content: user }],
+    });
+  } catch (err) {
+    throw new Error(describeClaudeError(err));
+  }
 
   const textBlock = resp.content.find((b) => b.type === 'text');
   if (!textBlock) throw new Error('Claude returned no text content');
