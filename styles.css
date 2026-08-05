@@ -196,6 +196,15 @@ button.block { width: 100%; padding: 13px; font-size: 15px; margin-top: 18px; }
 .badge.posted    { background: #3fb95033; color: var(--ok); }
 .badge.failed    { background: #ff4d4d33; color: var(--accent); }
 
+.item .actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.item .del {
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  border-radius: 6px; width: 26px; height: 26px; line-height: 1; padding: 0;
+  font-size: 17px; cursor: pointer; flex-shrink: 0;
+}
+.item .del:hover { border-color: var(--accent); color: var(--accent); }
+.item .del:disabled { opacity: .5; cursor: default; }
+
 .small { color: var(--muted); font-size: 12px; }
 .center { text-align: center; }
 a { color: var(--info); }

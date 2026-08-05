@@ -242,11 +242,37 @@ async function loadVideos() {
             <div class="title">${escapeHtml(v.title || '(reading title from Drive…)')}</div>
             <div class="sub">${sub}${link}</div>
           </div>
-          <span class="badge ${v.status}">${v.status}</span>
+          <div class="actions">
+            <span class="badge ${v.status}">${v.status}</span>
+            <button class="del" data-id="${escapeHtml(v.id)}" title="Remove from this list" aria-label="Remove from this list">&times;</button>
+          </div>
         </div>`;
     })
     .join('');
 }
+
+// Remove a row from the list — e.g. a failed attempt you've already re-run
+// successfully. Registered once, outside loadVideos(), so the auto-refresh
+// doesn't stack a new listener on every redraw.
+$('videoList').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.del');
+  if (!btn) return;
+
+  const title = btn.closest('.item')?.querySelector('.title')?.textContent || 'this entry';
+  const ok = confirm(
+    `Remove "${title}" from this list?\n\n` +
+      'This deletes the record here only. An already-uploaded YouTube video and your Drive files are not touched.'
+  );
+  if (!ok) return;
+
+  btn.disabled = true;
+  const { error } = await supabase.from(VIDEOS_TABLE).delete().eq('id', btn.dataset.id);
+  if (error) {
+    btn.disabled = false;
+    return setMsg($('scheduleMsg'), `Could not remove it: ${error.message}`, 'err');
+  }
+  loadVideos();
+});
 
 // ── helpers ────────────────────────────────────────────────────────────────
 function setMsg(el, text, kind) {
