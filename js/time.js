@@ -1,4 +1,4 @@
-import { TIMEZONE } from './config.js';
+import { TIMEZONE, TIMEZONE_LABEL } from './config.js';
 
 // Offset (ms) between the wall-clock reading of `date` in `tz` and true UTC.
 function getOffsetMs(tz, date) {
@@ -20,8 +20,9 @@ function getOffsetMs(tz, date) {
   return asUTC - date.getTime();
 }
 
-// Convert a wall-clock time in TIMEZONE to a true UTC Date. Handles DST,
-// including the two annual transition edges, via a one-step refinement.
+// Convert a wall-clock time in TIMEZONE to a true UTC Date. Zone-agnostic:
+// handles DST, including the two annual transition edges, via a one-step
+// refinement, so TIMEZONE can be changed to any zone.
 function wallTimeToUtc(y, mo, d, h, mi) {
   const guess = new Date(Date.UTC(y, mo - 1, d, h, mi, 0));
   const off1 = getOffsetMs(TIMEZONE, guess);
@@ -31,24 +32,26 @@ function wallTimeToUtc(y, mo, d, h, mi) {
   return utc;
 }
 
-// "2026-07-10T18:00" (from <input type="datetime-local">) interpreted as ET -> UTC Date.
-export function etInputToUtc(value) {
+// "2026-07-10T18:00" (from <input type="datetime-local">) read in TIMEZONE -> UTC Date.
+export function zonedInputToUtc(value) {
   const m = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
   if (!m) return null;
   return wallTimeToUtc(+m[1], +m[2], +m[3], +m[4], +m[5]);
 }
 
-export function formatEt(date) {
+export function formatZoned(date) {
   return (
     new Intl.DateTimeFormat('en-US', {
       timeZone: TIMEZONE,
       dateStyle: 'medium',
       timeStyle: 'short',
-    }).format(date) + ' ET'
+    }).format(date) +
+    ' ' +
+    TIMEZONE_LABEL
   );
 }
 
-export function utcToEtInputValue(date) {
+export function utcToZonedInputValue(date) {
   if (!date || isNaN(date.getTime())) return '';
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: TIMEZONE,

@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, OWNER_EMAIL, ALLOWED_EMAILS } from './config.js';
-import { etInputToUtc, formatEt, utcToEtInputValue, validatePublish } from './time.js';
+import { zonedInputToUtc, formatZoned, utcToZonedInputValue, validatePublish } from './time.js';
 
 const $ = (id) => document.getElementById(id);
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -173,10 +173,10 @@ updatePreview();
 function updateMinimumPublishTime() {
   const minMs = Date.now() + 3 * 3600 * 1000;
   const stepMs = 15 * 60 * 1000;
-  $('publishAt').min = utcToEtInputValue(new Date(Math.ceil(minMs / stepMs) * stepMs));
+  $('publishAt').min = utcToZonedInputValue(new Date(Math.ceil(minMs / stepMs) * stepMs));
 }
 function updatePreview() {
-  const utc = etInputToUtc($('publishAt').value);
+  const utc = zonedInputToUtc($('publishAt').value);
   const el = $('publishPreview');
   el.classList.remove('ok', 'warn');
   if (!utc) {
@@ -184,13 +184,13 @@ function updatePreview() {
     return;
   }
   const err = validatePublish(utc);
-  el.textContent = err ? err : `Will publish at ${formatEt(utc)} (${utc.toUTCString()})`;
+  el.textContent = err ? err : `Will publish at ${formatZoned(utc)} (${utc.toUTCString()})`;
   el.classList.add(err ? 'warn' : 'ok');
 }
 
 $('scheduleBtn').addEventListener('click', async () => {
   const msg = $('scheduleMsg');
-  const utc = etInputToUtc($('publishAt').value);
+  const utc = zonedInputToUtc($('publishAt').value);
   const err = validatePublish(utc);
   if (err) return setMsg(msg, err, 'err');
 
@@ -229,7 +229,7 @@ async function loadVideos() {
 
   list.innerHTML = data
     .map((v) => {
-      const when = v.publish_at ? formatEt(new Date(v.publish_at)) : '';
+      const when = v.publish_at ? formatZoned(new Date(v.publish_at)) : '';
       const sub =
         v.status === 'failed' && v.error
           ? `Error: ${escapeHtml(v.error)}`

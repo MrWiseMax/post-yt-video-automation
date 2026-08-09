@@ -16,4 +16,8 @@ export const ALLOWED_EMAILS = [
   'ahmedzuhairyoutube@gmail.com',
 ];
 
-export const TIMEZONE = 'America/New_York';
+// Every time you type into the app is read as wall-clock time in this zone,
+// then stored/sent to YouTube as UTC. Keep the pill and hint text in
+// index.html naming the same zone — update both together.
+export const TIMEZONE = 'Asia/Jakarta';
+export const TIMEZONE_LABEL = 'WIB';

@@ -8,7 +8,7 @@ Drop 3 files in a Google Drive folder, pick a time in the web app, click one but
    - `<Exact YouTube Title>.mp4` - the filename **is** the video's title.
    - `<Exact YouTube Title>.png` - the thumbnail.
    - `Transcript.srt` - English captions + timestamps. Any `.srt` filename works.
-2. In the web app: pick a **target day + time (Eastern Time)** at least about 3 hours out, click **Process & Schedule Video**.
+2. In the web app: pick a **target day + time (Jakarta time, WIB)** at least about 3 hours out, click **Process & Schedule Video**.
 3. Watch Telegram:
    - `⏰ Video uploaded successfully and scheduled to post: ...`
    - `✅ Video is now live: ...` once it is confirmed public.
@@ -76,7 +76,7 @@ Browser access is limited to these emails (both accounts share the exact same ap
 
 ## Rules Enforced
 
-- Eastern Time with DST handled (`America/New_York`).
+- Times are entered in Jakarta time (`Asia/Jakarta`, WIB / UTC+7) and converted to UTC before storage. Change `TIMEZONE` + `TIMEZONE_LABEL` in `js/config.js` to move to another zone; the conversion handles DST for zones that have it.
 - Target time rejected if in the past or less than about 3 hours out. This is checked in the browser and again in the worker.
 - Upload category is always Education.
 - Captions are always English.
