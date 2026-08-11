@@ -24,9 +24,9 @@ const SCHEMA = {
         required: ['time_seconds', 'title'],
       },
     },
-    first_comment: { type: 'string' },
+    closing_question: { type: 'string' },
   },
-  required: ['description', 'tags', 'chapters', 'first_comment'],
+  required: ['description', 'tags', 'chapters', 'closing_question'],
 };
 
 // The raw SDK error is a JSON blob that ends up verbatim in the Supabase
@@ -57,10 +57,12 @@ function describeClaudeError(err) {
 }
 
 /**
- * Generate SEO metadata + the channel's own first comment from the transcript.
- * All of it comes from ONE call: the transcript is the bulk of the input cost,
- * so asking for the comment here is nearly free versus a second request.
- * @returns {Promise<{description:string, tags:string[], chapters:{time_seconds:number,title:string}[], firstComment:string}>}
+ * Generate SEO metadata from the transcript, plus the question the video ends on
+ * (process.js turns that into the channel's own first comment). All of it comes
+ * from ONE call: the transcript is the bulk of the input cost, so pulling the
+ * question out here is nearly free versus a second request — and it beats
+ * regexing the .srt, where a caption cue usually splits the question mid-phrase.
+ * @returns {Promise<{description:string, tags:string[], chapters:{time_seconds:number,title:string}[], closingQuestion:string}>}
  */
 export async function generateContent({ title, timedTranscript, sampleTagsets, videoType = 'How-To' }) {
   const samples = (sampleTagsets || [])
@@ -75,13 +77,12 @@ export async function generateContent({ title, timedTranscript, sampleTagsets, v
     '- description: 150-300 words. The first 2 lines are a strong hook (they show above "...more"). Natural, keyword-rich, no keyword stuffing, no hashtag spam. Do NOT include chapter timestamps or links (those are added separately).',
     '- tags: 15-30 specific, high-intent tags relevant to THIS video. Match the topical style of the sample tag sets provided, but do not copy them verbatim.',
     '- chapters: 4-8 chapters that segment the video by topic. The first chapter MUST be at time_seconds 0. Each chapter title is short (2-6 words). Pick time_seconds values that align with the [timestamp] markers in the transcript, at least ~30s apart.',
-    '- first_comment: the creator\'s own comment, posted from the channel account the moment the video goes public. Its job is to start a real conversation in the comments section.',
-    '  - Write it as the creator speaking in first person, in the same warm, plain-spoken voice as the transcript. Talk to the viewer like a person, not an audience.',
-    '  - 2 to 4 sentences, roughly 300-600 characters. Short enough that people actually read it.',
-    '  - Reference ONE specific, concrete thing from this video (a number, an example, a moment, a claim). It must be obvious this was written for THIS video and could not be copy-pasted onto another one.',
-    '  - End with ONE open question that a viewer can answer from their own experience in a single sentence. Make it easy and inviting to answer, never rhetorical, never a yes/no question.',
-    '  - Never ask for likes, subscribes, or shares. No hashtags, no links, no all-caps, no emoji spam (at most one emoji, only if it genuinely fits). Do not restate the title or summarize the whole video.',
-    '  - Never promise or imply anything the video does not actually deliver.',
+    '- closing_question: the question the creator asks the viewer near the end of the video. It is posted verbatim as the channel\'s own first comment, so accuracy matters more than polish.',
+    '  - Pick the question that is aimed at the viewer and invites them to reply from their own experience. Ignore rhetorical questions and any question that is part of the video\'s teaching content.',
+    '  - Caption lines split sentences mid-phrase, so reassemble the full question across however many [timestamp] lines it spans.',
+    '  - Keep the creator\'s own wording. Only tidy it: drop a filler opener ("so", "and", "now"), fix capitalization, and end with a single question mark. Do not rewrite, shorten, or improve the phrasing.',
+    '  - One sentence, nothing around it — no greeting, no sign-off, no quotation marks.',
+    '  - If the video does not end by asking the viewer a question, return an empty string.',
     'Return only the structured JSON.',
   ].join('\n');
 
@@ -95,7 +96,7 @@ export async function generateContent({ title, timedTranscript, sampleTagsets, v
     'Timed transcript (each line: [timestamp] spoken text):',
     timedTranscript,
     '',
-    'Produce the description, tags, chapters, and first comment as structured JSON.',
+    'Produce the description, tags, chapters, and closing question as structured JSON.',
   ].join('\n');
 
   let resp;
@@ -123,6 +124,6 @@ export async function generateContent({ title, timedTranscript, sampleTagsets, v
     description: parsed.description || '',
     tags: Array.isArray(parsed.tags) ? parsed.tags : [],
     chapters: Array.isArray(parsed.chapters) ? parsed.chapters : [],
-    firstComment: (parsed.first_comment || '').trim(),
+    closingQuestion: (parsed.closing_question || '').trim(),
   };
 }

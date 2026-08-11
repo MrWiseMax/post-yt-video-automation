@@ -23,6 +23,7 @@ That's it. **The Drive files are never deleted** — nothing is removed from you
 - Metadata is framed as **How-To** content.
 - **Final tags** = video-specific tags Claude derived from *this* video's `.srt`, plus your channel tags, deduped and trimmed to YouTube's 500-character limit. Channel tags are capped at ~180 characters so a long channel-tag list can never crowd out the video's own topic (they used to consume the entire budget, which made every upload share one identical tag set).
 - **Final description** = Claude's description + chapters + your saved footer, trimmed to 5000 characters.
+- **First comment** = the question you ask the viewer at the end of the video (Claude pulls it out of the `.srt`) followed by a fixed sign-off. It is posted from the channel account when the video goes public. Edit the sign-off in `COMMENT_SIGNATURE` in `worker/src/process.js`.
 - **YouTube Data API v3:** uploads as *private* with `publishAt` = your chosen time, uses category **Education** (`27`), answers the Studio "AI use" disclosure with **No**, sets thumbnail (auto-shrunk to fit YouTube's 2 MB limit), and uploads the `.srt` as an English caption track.
 
 ### Settings the YouTube API cannot set (do these once per video in Studio)

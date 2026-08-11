@@ -17,6 +17,9 @@ const CAPTION_LANGUAGE = 'en';
 const YOUTUBE_CATEGORY_ID = '27'; // Education
 const VIDEO_TYPE = 'How-To';
 const VIDEO_TYPE_TAGS = ['education', 'how to', 'tutorial'];
+// The first comment is the video's own closing question (pulled from the
+// transcript by Claude) followed by this sign-off, which never changes.
+const COMMENT_SIGNATURE = 'And remember... I will always be cheering you on from afar ❤️\nMax';
 const SETTINGS_TABLE = 'post_yt_vido_automation_settings';
 const VIDEOS_TABLE = 'post_yt_vido_automation_videos';
 const now = () => new Date().toISOString();
@@ -129,19 +132,22 @@ async function main() {
       publishAt: publishAt.toISOString(),
       videoPath: mp4Path,
     });
-    // first_comment is stored now, not when the video goes public: by then the
-    // Drive folder has usually been cleared for the next video, so the
-    // transcript this comment is based on would be gone (or worse, replaced).
-    if (ai.firstComment) {
-      console.log(`First comment (${ai.firstComment.length} chars): ${ai.firstComment}`);
+    // The comment is assembled and stored now, not when the video goes public:
+    // by then the Drive folder has usually been cleared for the next video, so
+    // the transcript this question came from would be gone (or worse, replaced).
+    const firstComment = ai.closingQuestion ? `${ai.closingQuestion}\n\n${COMMENT_SIGNATURE}` : '';
+    if (firstComment) {
+      console.log(`First comment:\n${firstComment}`);
     } else {
-      console.warn('Claude returned an empty first_comment — the video will go live without one.');
+      console.warn(
+        'No closing question was found in the transcript — the video will go live without a first comment.'
+      );
     }
     await supabase
       .from(VIDEOS_TABLE)
       .update({
         youtube_video_id: youtubeVideoId,
-        first_comment: ai.firstComment || null,
+        first_comment: firstComment || null,
         updated_at: now(),
       })
       .eq('id', VIDEO_ID);
