@@ -68,10 +68,56 @@ export async function uploadCaptions(yt, videoId, srtPath, language) {
   });
 }
 
-/** 'public' | 'private' | 'unlisted' | null (video missing). */
-export async function getPrivacyStatus(yt, videoId) {
+/**
+ * Batched status lookup: videoId -> { privacyStatus, publishAt }.
+ * One call covers up to 50 ids. YouTube clears publishAt the moment a video
+ * actually goes public, so publishAt is null for anything already live. Ids
+ * that no longer exist on YouTube are simply absent from the map.
+ */
+export async function listVideoStatuses(yt, videoIds) {
+  const statuses = new Map();
+  for (let i = 0; i < videoIds.length; i += 50) {
+    const res = await yt.videos.list({ part: ['status'], id: videoIds.slice(i, i + 50) });
+    for (const item of res.data.items || []) {
+      statuses.set(item.id, {
+        privacyStatus: item.status?.privacyStatus || null,
+        publishAt: item.status?.publishAt || null,
+      });
+    }
+  }
+  return statuses;
+}
+
+/**
+ * Move an already-uploaded, still-private video to a new publish time.
+ *
+ * videos.update REPLACES the whole status object rather than patching it, so
+ * the current values are read back and re-sent. Skip that and every reschedule
+ * silently resets the Studio "AI use" disclosure, the made-for-kids answer and
+ * the license to their defaults.
+ */
+export async function updatePublishAt(yt, videoId, publishAt) {
   const res = await yt.videos.list({ part: ['status'], id: [videoId] });
-  return res.data.items?.[0]?.status?.privacyStatus || null;
+  const current = res.data.items?.[0]?.status;
+  if (!current) throw new Error('video not found on YouTube (deleted?)');
+  if (current.privacyStatus === 'public') {
+    throw new Error('the video is already public, so its publish time can no longer be changed');
+  }
+  await yt.videos.update({
+    part: ['status'],
+    requestBody: {
+      id: videoId,
+      status: {
+        privacyStatus: 'private', // required while publishAt is set
+        publishAt, // RFC3339 UTC
+        license: current.license,
+        embeddable: current.embeddable,
+        publicStatsViewable: current.publicStatsViewable,
+        selfDeclaredMadeForKids: current.selfDeclaredMadeForKids ?? false,
+        containsSyntheticMedia: current.containsSyntheticMedia ?? false,
+      },
+    },
+  });
 }
 
 /**

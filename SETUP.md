@@ -75,6 +75,11 @@ Legend: `VALUE_TO_COPY` means a value you will copy into a secret or setting lat
    `supabase/add_auto_engagement_columns.sql` once. It adds `first_comment`,
    `liked_at` and `comment_posted_at` to the videos table. Fresh installs get
    them from `schema.sql` already.
+
+   *Existing installs only:* if your database predates rescheduling, also run
+   `supabase/add_reschedule_column.sql` once. It adds `reschedule_to` plus the
+   trigger that wakes the worker when you change a scheduled time in the app.
+   Fresh installs get both from `schema.sql` already.
 4. In that same SQL editor, insert your GitHub repository details and fine-grained token:
    ```sql
    insert into post_yt_vido_automation_app_config (id, github_owner, github_repo, github_pat)
@@ -157,5 +162,9 @@ Uploads are fixed to:
 - After YouTube makes the scheduled video public, `check-live.yml` should eventually send Telegram message 3.
 - At that same moment the video is liked from the channel account and the first comment is posted.
   Message 3 carries a `⚠️` line if either step could not be completed, so you can do it by hand.
+- Press **Reschedule** on a scheduled video, pick a new time, and save. `check-live.yml` should
+  start within a minute and the new time should appear in YouTube Studio.
+- Move a scheduled video's time in the YouTube Studio app instead. Within 15 minutes the Recent
+  videos list should show the time you set there.
 
 If uploads start failing after a week, your Google OAuth app may still be in Testing mode. Set it to In production and generate a fresh refresh token.
