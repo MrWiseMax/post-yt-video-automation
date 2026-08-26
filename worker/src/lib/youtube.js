@@ -87,35 +87,3 @@ export async function listVideoStatuses(yt, videoIds) {
   }
   return statuses;
 }
-
-/**
- * Move an already-uploaded, still-private video to a new publish time.
- *
- * videos.update REPLACES the whole status object rather than patching it, so
- * the current values are read back and re-sent. Skip that and every reschedule
- * silently resets the Studio "AI use" disclosure, the made-for-kids answer and
- * the license to their defaults.
- */
-export async function updatePublishAt(yt, videoId, publishAt) {
-  const res = await yt.videos.list({ part: ['status'], id: [videoId] });
-  const current = res.data.items?.[0]?.status;
-  if (!current) throw new Error('video not found on YouTube (deleted?)');
-  if (current.privacyStatus === 'public') {
-    throw new Error('the video is already public, so its publish time can no longer be changed');
-  }
-  await yt.videos.update({
-    part: ['status'],
-    requestBody: {
-      id: videoId,
-      status: {
-        privacyStatus: 'private', // required while publishAt is set
-        publishAt, // RFC3339 UTC
-        license: current.license,
-        embeddable: current.embeddable,
-        publicStatsViewable: current.publicStatsViewable,
-        selfDeclaredMadeForKids: current.selfDeclaredMadeForKids ?? false,
-        containsSyntheticMedia: current.containsSyntheticMedia ?? false,
-      },
-    },
-  });
-}

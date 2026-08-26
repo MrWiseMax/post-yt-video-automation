@@ -68,10 +68,6 @@ export function utcToZonedInputValue(date) {
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
-// A reschedule needs enough lead for the worker to push the new time to
-// YouTube before the moment itself arrives.
-const RESCHEDULE_MIN_LEAD_MS = 15 * 60 * 1000;
-
 // Returns an error string, or null if valid.
 export function validatePublish(utcDate) {
   if (!utcDate || isNaN(utcDate.getTime())) return 'Please pick a valid date and time.';
@@ -79,20 +75,6 @@ export function validatePublish(utcDate) {
   if (utcDate.getTime() <= nowMs) return 'That time is in the past.';
   if (utcDate.getTime() < nowMs + 3 * 3600 * 1000) {
     return 'Target time must be at least 3 hours from now (YouTube needs processing time).';
-  }
-  return null;
-}
-
-// Rescheduling an already-uploaded video has no processing to wait for — the
-// upload and the metadata run finished long ago — so the 3-hour rule that
-// applies to a brand new schedule does not apply here.
-// Returns an error string, or null if valid.
-export function validateReschedule(utcDate) {
-  if (!utcDate || isNaN(utcDate.getTime())) return 'Please pick a valid date and time.';
-  const nowMs = Date.now();
-  if (utcDate.getTime() <= nowMs) return 'That time is in the past.';
-  if (utcDate.getTime() < nowMs + RESCHEDULE_MIN_LEAD_MS) {
-    return 'Pick a time at least 15 minutes out, so the change reaches YouTube before then.';
   }
   return null;
 }

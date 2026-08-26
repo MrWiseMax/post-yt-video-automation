@@ -25,9 +25,6 @@ That's it. **The Drive files are never deleted** — nothing is removed from you
 - **Final description** = Claude's description + chapters + your saved footer, trimmed to 5000 characters.
 - **First comment** = the question you ask the viewer at the end of the video (Claude pulls it out of the `.srt`) followed by a fixed sign-off. It is sent to you on Telegram when the video goes public; posting and pinning it is manual, because the Data API cannot pin a comment. Edit the sign-off in `COMMENT_SIGNATURE` in `worker/src/process.js`.
 - **YouTube Data API v3:** uploads as *private* with `publishAt` = your chosen time, uses category **Education** (`27`), answers the Studio "AI use" disclosure with **No**, sets thumbnail (auto-shrunk to fit YouTube's 2 MB limit), and uploads the `.srt` as an English caption track.
-- **Rescheduling:** press **Reschedule** on any scheduled video in the web app to move it. The
-  request goes to the worker, which updates YouTube and then the database — the app never talks to
-  YouTube directly, because the OAuth token is a worker secret.
 - **YouTube is the source of truth for publish times.** Change a scheduled time in the YouTube
   Studio app and the 15-minute check copies it back into this app and the database. Without that,
   a video moved earlier would go live before the worker thought it was due, so the Telegram message
@@ -78,7 +75,7 @@ Browser access is limited to these emails (both accounts share the exact same ap
 | `supabase/schema.sql` | Tables, row-level security, and the button-to-GitHub trigger. |
 | `supabase/rename_tables_to_prefixed_names.sql` | One-time migration used to rename old Supabase tables to the prefixed names. |
 | `.github/workflows/process-video.yml` | Worker 1: upload + schedule, messages 1 and 2. |
-| `.github/workflows/check-live.yml` | Worker 2: 15-minute cron. Pushes reschedules, syncs publish times from YouTube, detects go-live, message 3. |
+| `.github/workflows/check-live.yml` | Worker 2: 15-minute cron. Syncs publish times from YouTube, detects go-live, message 3. |
 | `worker/` | Node.js code both workers run. |
 | `SETUP.md` | The one-time setup checklist. Start here. |
 

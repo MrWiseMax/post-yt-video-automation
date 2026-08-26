@@ -78,10 +78,10 @@ Legend: `VALUE_TO_COPY` means a value you will copy into a secret or setting lat
    `comment_posted_at`, which nothing reads any more. Deploy the worker before
    dropping them. Fresh installs get the right shape from `schema.sql` already.
 
-   *Existing installs only:* if your database predates rescheduling, also run
-   `supabase/add_reschedule_column.sql` once. It adds `reschedule_to` plus the
-   trigger that wakes the worker when you change a scheduled time in the app.
-   Fresh installs get both from `schema.sql` already.
+   *Existing installs only:* if your database still has the `reschedule_to` column
+   from the old in-app reschedule feature, run `supabase/drop_reschedule_column.sql`
+   once to remove it, its trigger and that trigger's function. Publish times are
+   changed in YouTube Studio now. Fresh installs never get the column.
 4. In that same SQL editor, insert your GitHub repository details and fine-grained token:
    ```sql
    insert into post_yt_vido_automation_app_config (id, github_owner, github_repo, github_pat)
@@ -164,9 +164,7 @@ Uploads are fixed to:
 - After YouTube makes the scheduled video public, `check-live.yml` should eventually send Telegram message 3.
 - Message 3 carries the first comment text. Like the video and post + pin that comment yourself —
   neither is automated, so nothing touches your channel without you.
-- Press **Reschedule** on a scheduled video, pick a new time, and save. `check-live.yml` should
-  start within a minute and the new time should appear in YouTube Studio.
-- Move a scheduled video's time in the YouTube Studio app instead. Within 15 minutes the Recent
-  videos list should show the time you set there.
+- Move a scheduled video's time in the YouTube Studio app. Within 15 minutes the Recent videos
+  list should show the time you set there.
 
 If uploads start failing after a week, your Google OAuth app may still be in Testing mode. Set it to In production and generate a fresh refresh token.

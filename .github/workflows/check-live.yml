@@ -1,21 +1,16 @@
 name: Check Scheduled Videos Live
 
-# Every ~15 minutes: push any reschedule requested in the web app, copy publish
-# times down from YouTube, and detect scheduled videos that have gone public.
+# Every ~15 minutes: copy publish times down from YouTube, which is the source of
+# truth for them, and detect scheduled videos that have gone public.
 on:
   schedule:
     - cron: '*/15 * * * *'
-  # Fired by Supabase the moment a reschedule is requested in the web app, so
-  # the change reaches YouTube in about a minute instead of on the next tick.
-  repository_dispatch:
-    types: [sync-videos]
   workflow_dispatch:
 
 concurrency:
   group: check-live
-  # Queue rather than cancel. A run can be part-way through liking and
-  # commenting, and killing it between posting the comment and recording that
-  # it posted would make the next run comment a second time.
+  # Queue rather than cancel, so a run is never killed part-way through marking
+  # videos posted and sending their Telegram message.
   cancel-in-progress: false
 
 jobs:

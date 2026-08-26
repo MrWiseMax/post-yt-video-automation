@@ -186,7 +186,6 @@ button.block { width: 100%; padding: 13px; font-size: 15px; margin-top: 18px; }
 .item {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
-  flex-wrap: wrap; /* lets the reschedule editor drop onto its own row */
 }
 .item .item-main { flex: 1 1 200px; min-width: 0; }
 .item .title { font-weight: 600; font-size: 14px; word-break: break-word; }
@@ -206,21 +205,6 @@ button.block { width: 100%; padding: 13px; font-size: 15px; margin-top: 18px; }
 }
 .item .del:hover { border-color: var(--accent); color: var(--accent); }
 .item .del:disabled { opacity: .5; cursor: default; }
-.item .edit {
-  background: none; border: 1px solid var(--border); color: var(--muted);
-  border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; flex-shrink: 0;
-}
-.item .edit:hover { border-color: var(--info); color: var(--info); }
-
-.item .reschedule {
-  flex: 1 0 100%;
-  display: flex; flex-direction: column; gap: 8px;
-  margin-top: 4px; padding-top: 10px; border-top: 1px solid var(--border);
-}
-.item .reschedule input { margin: 0; }
-.item .reschedule-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.item .reschedule-row button { padding: 7px 14px; font-size: 13px; }
-.item .reschedule .msg:empty { display: none; }
 
 .small { color: var(--muted); font-size: 12px; }
 .center { text-align: center; }

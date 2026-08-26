@@ -1,12 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, OWNER_EMAIL, ALLOWED_EMAILS } from './config.js';
-import {
-  zonedInputToUtc,
-  formatZoned,
-  utcToZonedInputValue,
-  validatePublish,
-  validateReschedule,
-} from './time.js';
+import { zonedInputToUtc, formatZoned, utcToZonedInputValue, validatePublish } from './time.js';
 
 const $ = (id) => document.getElementById(id);
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -223,13 +217,7 @@ $('scheduleBtn').addEventListener('click', async () => {
 });
 
 // ── Recent videos ─────────────────────────────────────────────────────────
-// Set while a reschedule editor is open, so the 20-second auto-refresh does not
-// redraw the list and throw away what has been typed into it.
-let editingVideoId = null;
-
-async function loadVideos({ force = false } = {}) {
-  if (editingVideoId && !force) return;
-
+async function loadVideos() {
   const { data, error } = await supabase
     .from(VIDEOS_TABLE)
     .select('*')
@@ -243,40 +231,16 @@ async function loadVideos({ force = false } = {}) {
 }
 
 function videoItemHtml(v) {
+  // publish_at mirrors whatever YouTube actually has: publish times are changed
+  // in YouTube Studio, and the 15-minute check copies each one back down here.
   const when = v.publish_at ? formatZoned(new Date(v.publish_at)) : '';
-  let sub;
-  if (v.status === 'failed' && v.error) {
-    sub = `Error: ${escapeHtml(v.error)}`;
-  } else if (v.reschedule_to) {
-    // Requested here, not pushed to YouTube yet.
-    sub = `Target: ${when} → ${formatZoned(new Date(v.reschedule_to))} · updating YouTube…`;
-  } else {
-    sub = `Target: ${when}`;
-  }
-
+  const sub =
+    v.status === 'failed' && v.error
+      ? `Error: ${escapeHtml(v.error)}`
+      : `Target: ${when}`;
   const link = v.youtube_video_id
     ? ` · <a href="https://youtu.be/${v.youtube_video_id}" target="_blank" rel="noopener">open</a>`
     : '';
-
-  // Only an uploaded video that is still waiting to go public can be moved.
-  const canReschedule =
-    v.status === 'scheduled' && !!v.youtube_video_id && !v.reschedule_to && editingVideoId !== v.id;
-  const editBtn = canReschedule
-    ? `<button class="edit" data-id="${escapeHtml(v.id)}" title="Change the scheduled time">Reschedule</button>`
-    : '';
-
-  const editor =
-    editingVideoId === v.id
-      ? `<div class="reschedule">
-          <input id="rescheduleInput" type="datetime-local" step="900" value="${utcToZonedInputValue(new Date(v.publish_at))}" />
-          <div class="reschedule-row">
-            <button class="save-reschedule primary" data-id="${escapeHtml(v.id)}">Save</button>
-            <button class="cancel-reschedule">Cancel</button>
-            <span class="small">Jakarta time · at least 15 minutes out</span>
-          </div>
-          <div id="rescheduleMsg" class="msg"></div>
-        </div>`
-      : '';
 
   return `<div class="item">
       <div class="item-main">
@@ -285,42 +249,18 @@ function videoItemHtml(v) {
       </div>
       <div class="actions">
         <span class="badge ${v.status}">${v.status}</span>
-        ${editBtn}
         <button class="del" data-id="${escapeHtml(v.id)}" title="Remove from this list" aria-label="Remove from this list">&times;</button>
       </div>
-      ${editor}
     </div>`;
 }
 
-/**
- * Ask for a new publish time. The web app cannot call YouTube itself — the
- * OAuth refresh token is a worker secret — so the requested time is parked in
- * reschedule_to. A Supabase trigger wakes the worker, which pushes it to
- * YouTube and only then moves it into publish_at.
- */
-async function saveReschedule(btn) {
-  const msg = $('rescheduleMsg');
-  const utc = zonedInputToUtc($('rescheduleInput').value);
-  const err = validateReschedule(utc);
-  if (err) return setMsg(msg, err, 'err');
-
-  btn.disabled = true;
-  setMsg(msg, 'Saving…', 'info');
-  const { error } = await supabase
-    .from(VIDEOS_TABLE)
-    .update({ reschedule_to: utc.toISOString(), updated_at: new Date().toISOString() })
-    .eq('id', btn.dataset.id);
-  btn.disabled = false;
-  if (error) return setMsg(msg, error.message, 'err');
-
-  editingVideoId = null;
-  setMsg($('scheduleMsg'), 'Reschedule requested — YouTube usually catches up within a minute.', 'ok');
-  loadVideos({ force: true });
-}
-
 // Remove a row from the list — e.g. a failed attempt you've already re-run
-// successfully.
-async function deleteVideo(btn) {
+// successfully. Registered once, outside loadVideos(), so the auto-refresh
+// doesn't stack a new listener on every redraw.
+$('videoList').addEventListener('click', async (e) => {
+  const btn = e.target.closest('.del');
+  if (!btn) return;
+
   const title = btn.closest('.item')?.querySelector('.title')?.textContent || 'this entry';
   const ok = confirm(
     `Remove "${title}" from this list?\n\n` +
@@ -334,27 +274,7 @@ async function deleteVideo(btn) {
     btn.disabled = false;
     return setMsg($('scheduleMsg'), `Could not remove it: ${error.message}`, 'err');
   }
-  if (editingVideoId === btn.dataset.id) editingVideoId = null;
-  loadVideos({ force: true });
-}
-
-// Registered once, outside loadVideos(), so the auto-refresh doesn't stack a
-// new listener on every redraw.
-$('videoList').addEventListener('click', (e) => {
-  const edit = e.target.closest('.edit');
-  if (edit) {
-    editingVideoId = edit.dataset.id;
-    return loadVideos({ force: true });
-  }
-  if (e.target.closest('.cancel-reschedule')) {
-    editingVideoId = null;
-    return loadVideos({ force: true });
-  }
-  const save = e.target.closest('.save-reschedule');
-  if (save) return saveReschedule(save);
-
-  const del = e.target.closest('.del');
-  if (del) return deleteVideo(del);
+  loadVideos();
 });
 
 // ── helpers ────────────────────────────────────────────────────────────────
