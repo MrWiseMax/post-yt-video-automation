@@ -35,12 +35,11 @@ create table if not exists public.post_yt_vido_automation_videos (
   publish_at        timestamptz not null,
   youtube_video_id  text,
   error             text,
-  -- Auto-engagement. first_comment is assembled at upload time (while the
-  -- transcript is still in Drive) from the video's own closing question plus a
-  -- fixed sign-off, and posted later, when the video goes public.
+  -- The first comment, assembled at upload time (while the transcript is still
+  -- in Drive) from the video's own closing question plus a fixed sign-off. It is
+  -- sent to Telegram when the video goes public; posting and pinning it on
+  -- YouTube is manual.
   first_comment     text,
-  liked_at          timestamptz,
-  comment_posted_at timestamptz,
   -- Pending reschedule requested in the web app. publish_at mirrors what
   -- YouTube actually has; reschedule_to is a request the worker has not pushed
   -- yet. Keeping them apart stops the YouTube -> Supabase sync from instantly

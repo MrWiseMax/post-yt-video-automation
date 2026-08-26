@@ -1,6 +1,6 @@
 import { getSupabase } from './lib/supabaseClient.js';
 import { youtubeClient } from './lib/googleAuth.js';
-import { listVideoStatuses, updatePublishAt, likeVideo, postComment } from './lib/youtube.js';
+import { listVideoStatuses, updatePublishAt } from './lib/youtube.js';
 import { sendTelegram } from './lib/telegram.js';
 
 const VIDEOS_TABLE = 'post_yt_vido_automation_videos';
@@ -94,51 +94,6 @@ async function syncPublishTimes(supabase, rows, statuses) {
   }
 }
 
-/**
- * Like the video and post the comment that was built at upload time.
- *
- * Deliberately never throws. Going live is the real event here; if the like or
- * the comment fails, the row must still be marked 'posted' and the "video is
- * live" Telegram message must still go out. Problems are reported in that same
- * message instead, so they can be handled by hand.
- *
- * The liked_at / comment_posted_at guards make a retry safe: if the row update
- * below ever fails after the comment lands, the next run will not comment twice.
- *
- * @returns {Promise<{patch:Object, notes:string[]}>} columns to persist + warnings
- */
-async function runEngagement(yt, v) {
-  const patch = {};
-  const notes = [];
-
-  if (!v.liked_at) {
-    try {
-      await likeVideo(yt, v.youtube_video_id);
-      patch.liked_at = now();
-      console.log(`Liked: ${v.title}`);
-    } catch (e) {
-      notes.push(`could not like the video (${e.message})`);
-    }
-  }
-
-  if (!v.comment_posted_at) {
-    const text = (v.first_comment || '').trim();
-    if (!text) {
-      notes.push('no first comment was saved at upload time — post one by hand');
-    } else {
-      try {
-        await postComment(yt, v.youtube_video_id, text);
-        patch.comment_posted_at = now();
-        console.log(`Commented on: ${v.title}`);
-      } catch (e) {
-        notes.push(`could not post the first comment (${e.message})`);
-      }
-    }
-  }
-
-  return { patch, notes };
-}
-
 async function main() {
   const supabase = getSupabase();
 
@@ -176,13 +131,20 @@ async function main() {
       continue;
     }
     try {
-      const { patch, notes } = await runEngagement(yt, v);
       await supabase
         .from(VIDEOS_TABLE)
-        .update({ status: 'posted', ...patch, updated_at: now() })
+        .update({ status: 'posted', updated_at: now() })
         .eq('id', v.id);
-      const warning = notes.length ? `\n⚠️ ${notes.join('; ')}` : '';
-      await sendTelegram(`✅ Video is now live: ${v.title}${warning}`);
+
+      // Liking and commenting are done by hand. The Data API cannot pin a
+      // comment, so that trip to YouTube happens either way — the comment text
+      // rides along here ready to copy.
+      const comment = (v.first_comment || '').trim();
+      await sendTelegram(
+        comment
+          ? `✅ Video is now live: ${v.title}\n💬 Comment:\n${comment}`
+          : `✅ Video is now live: ${v.title}\n⚠️ No comment was saved for this one — write one by hand.`
+      );
       console.log(`Posted: ${v.title}`);
     } catch (e) {
       console.error(`Check failed for ${v.id} (${v.title}): ${e.message}`);

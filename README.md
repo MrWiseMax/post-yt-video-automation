@@ -11,7 +11,7 @@ Drop 3 files in a Google Drive folder, pick a time in the web app, click one but
 2. In the web app: pick a **target day + time (Jakarta time, WIB)** at least about 3 hours out, click **Process & Schedule Video**.
 3. Watch Telegram:
    - `⏰ Video uploaded successfully and scheduled to post: ...`
-   - `✅ Video is now live: ...` once it is confirmed public.
+   - `✅ Video is now live: ...` once it is confirmed public, carrying the comment text to copy.
    - `❌ Upload failed ...` only if something went wrong.
 
 That's it. **The Drive files are never deleted** — nothing is removed from your folder. Replace them with the next video's files before scheduling again; if you forget, the worker refuses the job instead of re-uploading the same video.
@@ -23,15 +23,15 @@ That's it. **The Drive files are never deleted** — nothing is removed from you
 - Metadata is framed as **How-To** content.
 - **Final tags** = video-specific tags Claude derived from *this* video's `.srt`, plus your channel tags, deduped and trimmed to YouTube's 500-character limit. Channel tags are capped at ~180 characters so a long channel-tag list can never crowd out the video's own topic (they used to consume the entire budget, which made every upload share one identical tag set).
 - **Final description** = Claude's description + chapters + your saved footer, trimmed to 5000 characters.
-- **First comment** = the question you ask the viewer at the end of the video (Claude pulls it out of the `.srt`) followed by a fixed sign-off. It is posted from the channel account when the video goes public. Edit the sign-off in `COMMENT_SIGNATURE` in `worker/src/process.js`.
+- **First comment** = the question you ask the viewer at the end of the video (Claude pulls it out of the `.srt`) followed by a fixed sign-off. It is sent to you on Telegram when the video goes public; posting and pinning it is manual, because the Data API cannot pin a comment. Edit the sign-off in `COMMENT_SIGNATURE` in `worker/src/process.js`.
 - **YouTube Data API v3:** uploads as *private* with `publishAt` = your chosen time, uses category **Education** (`27`), answers the Studio "AI use" disclosure with **No**, sets thumbnail (auto-shrunk to fit YouTube's 2 MB limit), and uploads the `.srt` as an English caption track.
 - **Rescheduling:** press **Reschedule** on any scheduled video in the web app to move it. The
   request goes to the worker, which updates YouTube and then the database — the app never talks to
   YouTube directly, because the OAuth token is a worker secret.
 - **YouTube is the source of truth for publish times.** Change a scheduled time in the YouTube
   Studio app and the 15-minute check copies it back into this app and the database. Without that,
-  a video moved earlier would go live before the worker thought it was due, and the automatic like
-  and first comment would be late.
+  a video moved earlier would go live before the worker thought it was due, so the Telegram message
+  telling you to like and comment would arrive late.
 - **Supabase** records every video: queued -> processing -> scheduled -> posted / failed.
 
 ### Settings the YouTube API cannot set (do these once per video in Studio)

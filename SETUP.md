@@ -71,10 +71,12 @@ Legend: `VALUE_TO_COPY` means a value you will copy into a secret or setting lat
    - row-level security rules
    - the `pg_net` dispatch trigger
 
-   *Existing installs only:* if your database predates auto-engagement, also run
-   `supabase/add_auto_engagement_columns.sql` once. It adds `first_comment`,
-   `liked_at` and `comment_posted_at` to the videos table. Fresh installs get
-   them from `schema.sql` already.
+   *Existing installs only:* if your database predates the first comment, also run
+   `supabase/add_auto_engagement_columns.sql` once — of the three columns it adds,
+   only `first_comment` is still used. Then run
+   `supabase/drop_auto_engagement_columns.sql` to remove `liked_at` and
+   `comment_posted_at`, which nothing reads any more. Deploy the worker before
+   dropping them. Fresh installs get the right shape from `schema.sql` already.
 
    *Existing installs only:* if your database predates rescheduling, also run
    `supabase/add_reschedule_column.sql` once. It adds `reschedule_to` plus the
@@ -160,8 +162,8 @@ Uploads are fixed to:
 - You should get Telegram message 1 when processing starts.
 - After upload succeeds, you should get Telegram message 2.
 - After YouTube makes the scheduled video public, `check-live.yml` should eventually send Telegram message 3.
-- At that same moment the video is liked from the channel account and the first comment is posted.
-  Message 3 carries a `⚠️` line if either step could not be completed, so you can do it by hand.
+- Message 3 carries the first comment text. Like the video and post + pin that comment yourself —
+  neither is automated, so nothing touches your channel without you.
 - Press **Reschedule** on a scheduled video, pick a new time, and save. `check-live.yml` should
   start within a minute and the new time should appear in YouTube Studio.
 - Move a scheduled video's time in the YouTube Studio app instead. Within 15 minutes the Recent
