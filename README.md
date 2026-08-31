@@ -11,7 +11,8 @@ Drop 3 files in a Google Drive folder, pick a time in the web app, click one but
 2. In the web app: pick a **target day + time (Jakarta time, WIB)** at least about 3 hours out, click **Process & Schedule Video**.
 3. Watch Telegram:
    - `⏰ Video uploaded successfully and scheduled to post: ...`
-   - `✅ Video is now live: ...` once it is confirmed public, carrying the comment text to copy.
+   - `✅ Video is now live: ...` once it is confirmed public, followed by the comment on its own
+     so it can be copied in one go.
    - `❌ Upload failed ...` only if something went wrong.
 
 That's it. **The Drive files are never deleted** — nothing is removed from your folder. Replace them with the next video's files before scheduling again; if you forget, the worker refuses the job instead of re-uploading the same video.

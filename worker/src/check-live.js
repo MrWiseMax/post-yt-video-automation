@@ -88,15 +88,15 @@ async function main() {
         .update({ status: 'posted', updated_at: now() })
         .eq('id', v.id);
 
-      // Liking and commenting are done by hand. The Data API cannot pin a
-      // comment, so that trip to YouTube happens either way — the comment text
-      // rides along here ready to copy.
+      // Two messages on purpose: the comment arrives on its own so it can be
+      // copied whole with one long-press, with no header text to trim off.
       const comment = (v.first_comment || '').trim();
       await sendTelegram(
         comment
-          ? `✅ Video is now live: ${v.title}\n💬 Comment:\n${comment}`
+          ? `✅ Video is now live: ${v.title}\n💬 Comment below ↓`
           : `✅ Video is now live: ${v.title}\n⚠️ No comment was saved for this one — write one by hand.`
       );
+      if (comment) await sendTelegram(comment);
       console.log(`Posted: ${v.title}`);
     } catch (e) {
       console.error(`Check failed for ${v.id} (${v.title}): ${e.message}`);
