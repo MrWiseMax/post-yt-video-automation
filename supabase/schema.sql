@@ -19,6 +19,9 @@ create table if not exists public.post_yt_vido_automation_settings (
   drive_folder_id     text  default '',
   youtube_category_id text  default '27', -- 27 = Education
   caption_language    text  default 'en',
+  -- Stamped by the worker when a YouTube check finishes, so the web app can
+  -- stop waiting the moment the work is done instead of counting seconds.
+  last_checked_at     timestamptz,
   updated_at          timestamptz default now()
 );
 insert into public.post_yt_vido_automation_settings (id) values (1) on conflict (id) do nothing;

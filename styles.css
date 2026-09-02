@@ -175,6 +175,7 @@ button.block { width: 100%; padding: 13px; font-size: 15px; margin-top: 18px; }
 .msg.ok { color: var(--ok); }
 .msg.err { color: var(--accent); }
 .msg.info { color: var(--info); }
+.msg.warn { color: var(--warn); }
 
 .hidden { display: none !important; }
 

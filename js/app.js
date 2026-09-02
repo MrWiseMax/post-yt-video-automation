@@ -289,27 +289,48 @@ $('videoList').addEventListener('click', async (e) => {
 // published, and flags ones deleted after they were live. It takes about a
 // minute, so the list is re-read for a couple of minutes and then left alone —
 // nothing polls after that.
+async function readLastChecked() {
+  const { data } = await supabase
+    .from(SETTINGS_TABLE)
+    .select('last_checked_at')
+    .eq('id', 1)
+    .single();
+  return data?.last_checked_at || null;
+}
+
 async function syncWithYouTube() {
   const msg = $('refreshMsg');
+  // Remember the stamp before asking, so the wait ends on the value changing
+  // rather than on a timer. Comparing values rather than clocks keeps the
+  // browser's idea of the time out of it.
+  const before = await readLastChecked();
+
   const { error } = await supabase.rpc('dispatch_refresh_videos');
   if (error) return setMsg(msg, `Could not check YouTube: ${error.message}`, 'err');
 
   setMsg(msg, 'Checking YouTube…', 'info');
-  // The run itself is quick — about two seconds of YouTube once GitHub has
-  // finished starting a job, so roughly 20 seconds end to end. Re-read often
-  // over half a minute rather than rarely over two: the old 20-second interval
-  // left "Checking YouTube…" on screen long after the data had already landed.
-  let checks = 0;
+  let tries = 0;
   followUpTimer = setInterval(async () => {
-    checks += 1;
-    await loadVideos();
-    if (checks < 6) return;
-    clearInterval(followUpTimer);
-    followUpTimer = null;
-    setMsg(msg, 'Up to date with YouTube. Reload the page to check again.', 'ok');
-  }, 5000);
-}
+    tries += 1;
+    const stamp = await readLastChecked();
 
+    if (stamp && stamp !== before) {
+      clearInterval(followUpTimer);
+      followUpTimer = null;
+      await loadVideos();
+      setMsg(msg, 'Up to date with YouTube.', 'ok');
+      return;
+    }
+
+    // A minute is far longer than a run takes; something is wrong rather than slow.
+    if (tries >= 30) {
+      clearInterval(followUpTimer);
+      followUpTimer = null;
+      await loadVideos();
+      setMsg(msg, 'YouTube did not answer in time — reload to try again.', 'warn');
+    }
+  }, 2000);
+}
 // ── helpers ────────────────────────────────────────────────────────────────
 function setMsg(el, text, kind) {
   el.textContent = text;

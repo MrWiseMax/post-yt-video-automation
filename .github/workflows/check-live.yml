@@ -32,6 +32,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          # sharp ships platform binaries and is the slow part of the install,
+          # so keeping npm's cache between runs is worth the two lines.
+          cache: 'npm'
+          cache-dependency-path: worker/package-lock.json
 
       - name: Install dependencies
         working-directory: worker

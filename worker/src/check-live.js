@@ -4,6 +4,7 @@ import { listVideoStatuses } from './lib/youtube.js';
 import { sendTelegram } from './lib/telegram.js';
 
 const VIDEOS_TABLE = 'post_yt_vido_automation_videos';
+const SETTINGS_TABLE = 'post_yt_vido_automation_settings';
 // Set only when the run was asked for by the web app opening. The scheduled
 // runs exist purely so a video going public is noticed while the app is closed,
 // so they skip the reconciling and just watch for go-live.
@@ -146,6 +147,16 @@ async function main() {
     } catch (e) {
       console.error(`Check failed for ${v.id} (${v.title}): ${e.message}`);
     }
+  }
+
+  // Tell the web app the check is done. It watches this stamp instead of
+  // guessing how long a run takes, so the wait ends when the work does.
+  if (REFRESH_FROM_YOUTUBE) {
+    const { error: stampError } = await supabase
+      .from(SETTINGS_TABLE)
+      .update({ last_checked_at: now() })
+      .eq('id', 1);
+    if (stampError) console.error(`Could not record the check time: ${stampError.message}`);
   }
 }
 
