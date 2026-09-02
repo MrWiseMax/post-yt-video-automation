@@ -82,11 +82,14 @@ Legend: `VALUE_TO_COPY` means a value you will copy into a secret or setting lat
    from the old in-app reschedule feature, run `supabase/drop_reschedule_column.sql`
    once to remove it, its trigger and that trigger's function. Publish times are
    changed in YouTube Studio now. Fresh installs never get the column.
-   Also run `supabase/add_refresh_button.sql` and
-   `supabase/add_youtube_deleted_flag.sql` once each. The first lets the web app ask
-   for a YouTube check when its page loads; the second adds the column that marks an
-   already-published video as deleted. Both need step 4 below done first, since the
-   check reuses the stored GitHub token.
+   Also run these three once each. All need step 4 below done first, since they
+   reuse the stored GitHub token:
+   - `supabase/add_refresh_button.sql` — lets the web app ask for a YouTube check
+     when its page loads.
+   - `supabase/add_youtube_deleted_flag.sql` — adds the column that marks an
+     already-published video as deleted.
+   - `supabase/add_cron_ping.sql` — the 15-minute go-live check, so the "video is
+     now live" Telegram arrives even with the web app closed.
 
 4. In that same SQL editor, insert your GitHub repository details and fine-grained token:
    ```sql

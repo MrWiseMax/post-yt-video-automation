@@ -4,6 +4,10 @@ import { listVideoStatuses } from './lib/youtube.js';
 import { sendTelegram } from './lib/telegram.js';
 
 const VIDEOS_TABLE = 'post_yt_vido_automation_videos';
+// Set only when the run was asked for by the web app opening. The scheduled
+// runs exist purely so a video going public is noticed while the app is closed,
+// so they skip the reconciling and just watch for go-live.
+const REFRESH_FROM_YOUTUBE = process.env.REFRESH_FROM_YOUTUBE === '1';
 const now = () => new Date().toISOString();
 
 // One videos.list call covers 50 ids, and the app only ever shows the most
@@ -130,8 +134,11 @@ async function main() {
   const yt = youtubeClient();
   const statuses = await listVideoStatuses(yt, rows.map((v) => v.youtube_video_id));
 
-  const live = await reconcileMissing(supabase, rows, statuses);
-  await syncPublishTimes(supabase, live, statuses);
+  let live = rows;
+  if (REFRESH_FROM_YOUTUBE) {
+    live = await reconcileMissing(supabase, rows, statuses);
+    await syncPublishTimes(supabase, live, statuses);
+  }
 
   for (const v of live) {
     if (v.status !== 'scheduled') continue;

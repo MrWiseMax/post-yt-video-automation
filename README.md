@@ -32,9 +32,11 @@ That's it. **The Drive files are never deleted** — nothing is removed from you
   were live as **deleted** rather than dropping them. The run takes about a minute; the list picks
   the result up on its own and then stops. If *every* video comes back missing at once nothing is
   changed — that pattern means a credentials or API problem, not deletions.
-- **Go-live detection** happens in that same run: a scheduled video YouTube now reports as public is
-  marked posted and its comment goes to Telegram. Nothing polls on a schedule, so this lands when
-  you open the app — GitHub's own (unreliable) cron is the only backstop.
+- **Go-live detection runs on its own, every 15 minutes**, whether or not the web app is open — a
+  video usually publishes while nobody is looking, and that Telegram is the reminder to go and post
+  the comment. Supabase pg_cron fires it, because GitHub's own schedule is best effort and was seen
+  firing once every 2-5 hours. These runs *only* watch for videos going public; publish times and
+  deleted videos are still reconciled only when you open the app.
 - **Supabase** records every video: queued -> processing -> scheduled -> posted / failed.
 
 ### Settings the YouTube API cannot set (do these once per video in Studio)

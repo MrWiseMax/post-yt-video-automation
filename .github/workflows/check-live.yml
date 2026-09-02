@@ -9,8 +9,11 @@ on:
   schedule:
     - cron: '*/15 * * * *'
   repository_dispatch:
-    # Fired by the web app when its page loads. Every run does the same full
-    # check: sync publish times, reconcile deleted videos, detect go-live.
+    # check-live    : the 15-minute ping from Supabase pg_cron. Watches for
+    #                 videos going public so the Telegram arrives even with the
+    #                 web app closed. Nothing else.
+    # refresh-videos: fired by the web app when its page loads. Also syncs
+    #                 publish times and reconciles deleted videos.
     types: [check-live, refresh-videos]
   workflow_dispatch:
 
@@ -44,4 +47,5 @@ jobs:
           YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REFRESH_FROM_YOUTUBE: ${{ (github.event.action == 'refresh-videos' || github.event_name == 'workflow_dispatch') && '1' || '' }}
         run: node src/check-live.js
