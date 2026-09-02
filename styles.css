@@ -40,9 +40,6 @@ header.top h1 { font-size: 20px; margin: 0; display: flex; align-items: center; 
   margin-bottom: 18px;
 }
 .card h2 { margin: 0 0 4px; font-size: 16px; }
-.card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.card-head h2 { margin: 0; }
-.card-head button { padding: 6px 12px; font-size: 12.5px; }
 .card p.hint { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
 
 label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
@@ -199,6 +196,7 @@ button.block { width: 100%; padding: 13px; font-size: 15px; margin-top: 18px; }
 .badge.scheduled { background: #d2992233; color: var(--warn); }
 .badge.posted    { background: #3fb95033; color: var(--ok); }
 .badge.failed    { background: #ff4d4d33; color: var(--accent); }
+.badge.deleted   { background: #ff4d4d33; color: var(--accent); }
 
 .item .actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .item .del {

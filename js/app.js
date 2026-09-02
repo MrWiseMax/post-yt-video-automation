@@ -9,7 +9,8 @@ const SETTINGS_TABLE = 'post_yt_vido_automation_settings';
 const VIDEOS_TABLE = 'post_yt_vido_automation_videos';
 const ALLOWED_EMAIL_SET = new Set(ALLOWED_EMAILS.map((e) => e.trim().toLowerCase()));
 
-let refreshTimer = null;
+let syncStarted = false;
+let followUpTimer = null;
 let settingsLoadedForUserId = null;
 let settingsLoadingForUserId = null;
 
@@ -82,13 +83,17 @@ function render(session) {
   if (authed) {
     if (settingsLoadedForUserId !== userId && settingsLoadingForUserId !== userId) loadSettings(userId);
     loadVideos();
-    if (!refreshTimer) refreshTimer = setInterval(loadVideos, 20000);
+    if (!syncStarted) {
+      syncStarted = true;
+      syncWithYouTube();
+    }
   } else {
     settingsLoadedForUserId = null;
     settingsLoadingForUserId = null;
-    if (refreshTimer) {
-      clearInterval(refreshTimer);
-      refreshTimer = null;
+    syncStarted = false;
+    if (followUpTimer) {
+      clearInterval(followUpTimer);
+      followUpTimer = null;
     }
   }
   if (session && !allowed) {
@@ -242,13 +247,17 @@ function videoItemHtml(v) {
     ? ` · <a href="https://youtu.be/${v.youtube_video_id}" target="_blank" rel="noopener">open</a>`
     : '';
 
+  // A video that was live and has since been deleted on YouTube keeps its row,
+  // flagged, rather than vanishing from the history.
+  const label = v.youtube_deleted_at ? 'deleted' : v.status;
+
   return `<div class="item">
       <div class="item-main">
         <div class="title">${escapeHtml(v.title || '(reading title from Drive…)')}</div>
         <div class="sub">${sub}${link}</div>
       </div>
       <div class="actions">
-        <span class="badge ${v.status}">${v.status}</span>
+        <span class="badge ${label}">${label}</span>
         <button class="del" data-id="${escapeHtml(v.id)}" title="Remove from this list" aria-label="Remove from this list">&times;</button>
       </div>
     </div>`;
@@ -277,26 +286,28 @@ $('videoList').addEventListener('click', async (e) => {
   loadVideos();
 });
 
-// ── Refresh from YouTube ─────────────────────────────────
-// The page cannot reach YouTube itself, so this asks Supabase to fire the
-// worker, which copies publish times down and removes videos that are gone.
-// The run takes about a minute; the list picks the changes up on its own.
-$('refreshBtn').addEventListener('click', async () => {
-  const btn = $('refreshBtn');
+// ── Sync with YouTube on load ─────────────────────────────────────────────
+// The page has no YouTube credentials, so it asks Supabase to fire the worker.
+// That run copies publish times down, removes videos cancelled before they ever
+// published, and flags ones deleted after they were live. It takes about a
+// minute, so the list is re-read for a couple of minutes and then left alone —
+// nothing polls after that.
+async function syncWithYouTube() {
   const msg = $('refreshMsg');
-  btn.disabled = true;
-  setMsg(msg, 'Asking YouTube…', 'info');
-
   const { error } = await supabase.rpc('dispatch_refresh_videos');
-  if (error) {
-    btn.disabled = false;
-    return setMsg(msg, `Could not start the refresh: ${error.message}`, 'err');
-  }
+  if (error) return setMsg(msg, `Could not check YouTube: ${error.message}`, 'err');
 
-  setMsg(msg, 'Checking YouTube — the list updates by itself in about a minute.', 'ok');
-  // Long enough for the run to finish, so it cannot be fired repeatedly.
-  setTimeout(() => { btn.disabled = false; }, 60000);
-});
+  setMsg(msg, 'Checking YouTube…', 'info');
+  let checks = 0;
+  followUpTimer = setInterval(async () => {
+    checks += 1;
+    await loadVideos();
+    if (checks < 6) return;
+    clearInterval(followUpTimer);
+    followUpTimer = null;
+    setMsg(msg, 'Up to date with YouTube. Reload the page to check again.', 'ok');
+  }, 20000);
+}
 
 // ── helpers ────────────────────────────────────────────────────────────────
 function setMsg(el, text, kind) {

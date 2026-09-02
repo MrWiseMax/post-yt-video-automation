@@ -4,11 +4,11 @@ import { listVideoStatuses } from './lib/youtube.js';
 import { sendTelegram } from './lib/telegram.js';
 
 const VIDEOS_TABLE = 'post_yt_vido_automation_videos';
-// Set only when the run came from the "Refresh from YouTube" button. The
-// scheduled runs just watch for videos going public; copying publish times down
-// and clearing out deleted videos happens when asked for, not on a timer.
-const REFRESH_FROM_YOUTUBE = process.env.REFRESH_FROM_YOUTUBE === '1';
 const now = () => new Date().toISOString();
+
+// One videos.list call covers 50 ids, and the app only ever shows the most
+// recent handful, so there is no reason to walk the whole table.
+const CHECK_LIMIT = 50;
 
 // The zone the web app shows every time in (js/config.js). Duplicated rather
 // than imported: that module is browser-side and pulls in Supabase config.
@@ -22,36 +22,56 @@ const fmtWhen = (iso) =>
   }).format(new Date(iso)) + ` ${TIMEZONE_LABEL}`;
 
 /**
- * Drop rows whose video is no longer on YouTube — deleted in Studio, or an
- * upload cancelled before it ever went public. videos.list simply omits ids it
- * cannot return, so an id missing from the batch is the signal.
+ * Reconcile rows whose video is no longer on YouTube. videos.list simply omits
+ * ids it cannot return, so an id missing from the batch is the signal.
+ *
+ * A scheduled video that is gone was cancelled before it ever published, so its
+ * row is removed outright. A posted one is a video that existed and was taken
+ * down later, so the row is kept and flagged instead — the app shows it as
+ * "deleted" rather than quietly dropping a video that really did go out.
  *
  * Guarded against the one dangerous case: if EVERY video comes back missing and
  * there was more than one, that is far more likely a credentials or API problem
- * than the whole schedule being deleted at once, so nothing is removed.
+ * than everything being deleted at once, so nothing is touched.
  *
  * @returns {Promise<Array>} the rows whose video still exists
  */
-async function dropDeletedVideos(supabase, rows, statuses) {
+async function reconcileMissing(supabase, rows, statuses) {
   const missing = rows.filter((v) => !statuses.has(v.youtube_video_id));
   if (missing.length === 0) return rows;
 
   if (missing.length === rows.length && rows.length > 1) {
     console.error(
-      `All ${rows.length} scheduled videos came back missing from YouTube. Treating that as an API ` +
-        'or credentials problem rather than as deletions, so nothing was removed.'
+      `All ${rows.length} videos came back missing from YouTube. Treating that as an API or ` +
+        'credentials problem rather than as deletions, so nothing was changed.'
     );
     return rows;
   }
 
   for (const v of missing) {
-    const { error } = await supabase.from(VIDEOS_TABLE).delete().eq('id', v.id);
-    if (error) {
-      console.error(`Could not remove "${v.title}" from the list: ${error.message}`);
+    if (v.status === 'scheduled') {
+      const { error } = await supabase.from(VIDEOS_TABLE).delete().eq('id', v.id);
+      if (error) {
+        console.error(`Could not remove "${v.title}" from the list: ${error.message}`);
+        continue;
+      }
+      console.log(`Never published and now gone from YouTube, row removed: ${v.title}`);
+      await sendTelegram(`🗑️ Removed from the list — no longer on YouTube: ${v.title}`);
       continue;
     }
-    console.log(`No longer on YouTube, removed from the list: ${v.title}`);
-    await sendTelegram(`🗑️ Removed from the list — no longer on YouTube: ${v.title}`);
+
+    // Posted. Flag it once; leave it flagged.
+    if (v.youtube_deleted_at) continue;
+    const { error } = await supabase
+      .from(VIDEOS_TABLE)
+      .update({ youtube_deleted_at: now(), updated_at: now() })
+      .eq('id', v.id);
+    if (error) {
+      console.error(`Could not flag "${v.title}" as deleted: ${error.message}`);
+      continue;
+    }
+    console.log(`Was live and has been deleted on YouTube, row flagged: ${v.title}`);
+    await sendTelegram(`🗑️ Deleted on YouTube: ${v.title}`);
   }
 
   return rows.filter((v) => statuses.has(v.youtube_video_id));
@@ -59,9 +79,8 @@ async function dropDeletedVideos(supabase, rows, statuses) {
 
 /**
  * Copy publish times down from YouTube, which is the source of truth: the time
- * can be changed in the YouTube Studio app at any point, and this app would
- * otherwise keep showing the original one — and, worse, miss the go-live for a
- * video moved earlier, because it would not look due yet.
+ * is changed in YouTube Studio, and this app would otherwise keep showing the
+ * one it was given when the video was first scheduled.
  *
  * Mutates `rows` in place.
  */
@@ -92,36 +111,32 @@ async function syncPublishTimes(supabase, rows, statuses) {
 async function main() {
   const supabase = getSupabase();
 
-  // Every scheduled video, not only the ones this app believes are due. The
-  // publish time may have been moved in YouTube Studio since the last run, and
-  // a video pulled earlier would never appear in a "due" filter at all.
+  // Scheduled videos are watched for going public; posted ones are only checked
+  // for having been taken down since.
   const { data: rows, error } = await supabase
     .from(VIDEOS_TABLE)
     .select('*')
-    .eq('status', 'scheduled')
-    .not('youtube_video_id', 'is', null);
+    .in('status', ['scheduled', 'posted'])
+    .not('youtube_video_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(CHECK_LIMIT);
   if (error) throw error;
 
   if (!rows || rows.length === 0) {
-    console.log('No scheduled videos to check.');
+    console.log('Nothing to check.');
     return;
   }
 
   const yt = youtubeClient();
-
   const statuses = await listVideoStatuses(yt, rows.map((v) => v.youtube_video_id));
-  let live = rows;
-  if (REFRESH_FROM_YOUTUBE) {
-    live = await dropDeletedVideos(supabase, rows, statuses);
-    await syncPublishTimes(supabase, live, statuses);
-  }
+
+  const live = await reconcileMissing(supabase, rows, statuses);
+  await syncPublishTimes(supabase, live, statuses);
 
   for (const v of live) {
+    if (v.status !== 'scheduled') continue;
     const status = statuses.get(v.youtube_video_id);
-    if (!status) {
-      console.warn(`Not found on YouTube (deleted?): ${v.title}`);
-      continue;
-    }
+    if (!status) continue;
     if (status.privacyStatus !== 'public') {
       console.log(`Not live yet (${status.privacyStatus}): ${v.title}`);
       continue;

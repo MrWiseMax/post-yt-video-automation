@@ -26,15 +26,15 @@ That's it. **The Drive files are never deleted** — nothing is removed from you
 - **Final description** = Claude's description + chapters + your saved footer, trimmed to 5000 characters.
 - **First comment** = the question you ask the viewer at the end of the video (Claude pulls it out of the `.srt`) followed by a fixed sign-off. It is sent to you on Telegram when the video goes public; posting and pinning it is manual, because the Data API cannot pin a comment. Edit the sign-off in `COMMENT_SIGNATURE` in `worker/src/process.js`.
 - **YouTube Data API v3:** uploads as *private* with `publishAt` = your chosen time, uses category **Education** (`27`), answers the Studio "AI use" disclosure with **No**, sets thumbnail (auto-shrunk to fit YouTube's 2 MB limit), and uploads the `.srt` as an English caption track.
-- **Go-live detection** runs on its own every 15 minutes (Supabase pg_cron fires the workflow —
-  GitHub's own schedule is too unreliable) and sends the Telegram message carrying the comment. It
-  checks every scheduled video against YouTube's real privacy status, so it still catches a video
-  whose time was moved in Studio.
-- **Refresh from YouTube** — the button on the Recent videos card. YouTube is the source of truth
-  for publish times, since they are changed in Studio, so this copies them down and removes
-  scheduled videos that no longer exist there. It runs on demand rather than on a timer. If *every*
-  scheduled video comes back missing at once nothing is removed — that pattern means a credentials
-  or API problem, not deletions.
+- **Checked against YouTube whenever the page loads.** Opening the web app asks Supabase to fire
+  the worker, which copies publish times down (they are changed in Studio, so YouTube is the source
+  of truth), removes videos cancelled before they ever published, and marks ones deleted after they
+  were live as **deleted** rather than dropping them. The run takes about a minute; the list picks
+  the result up on its own and then stops. If *every* video comes back missing at once nothing is
+  changed — that pattern means a credentials or API problem, not deletions.
+- **Go-live detection** happens in that same run: a scheduled video YouTube now reports as public is
+  marked posted and its comment goes to Telegram. Nothing polls on a schedule, so this lands when
+  you open the app — GitHub's own (unreliable) cron is the only backstop.
 - **Supabase** records every video: queued -> processing -> scheduled -> posted / failed.
 
 ### Settings the YouTube API cannot set (do these once per video in Studio)
