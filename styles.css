@@ -196,7 +196,6 @@ button.block { width: 100%; padding: 13px; font-size: 15px; margin-top: 18px; }
 .badge.scheduled { background: #d2992233; color: var(--warn); }
 .badge.posted    { background: #3fb95033; color: var(--ok); }
 .badge.failed    { background: #ff4d4d33; color: var(--accent); }
-.badge.deleted   { background: #ff4d4d33; color: var(--accent); }
 
 .item .actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .item .del {

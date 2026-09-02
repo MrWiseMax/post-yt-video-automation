@@ -86,8 +86,6 @@ Legend: `VALUE_TO_COPY` means a value you will copy into a secret or setting lat
    reuse the stored GitHub token:
    - `supabase/add_refresh_button.sql` — lets the web app ask for a YouTube check
      when its page loads.
-   - `supabase/add_youtube_deleted_flag.sql` — adds the column that marks an
-     already-published video as deleted.
    - `supabase/add_cron_ping.sql` — the 15-minute go-live check, so the "video is
      now live" Telegram arrives even with the web app closed.
 

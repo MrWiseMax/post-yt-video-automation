@@ -247,9 +247,6 @@ function videoItemHtml(v) {
     ? ` · <a href="https://youtu.be/${v.youtube_video_id}" target="_blank" rel="noopener">open</a>`
     : '';
 
-  // A video that was live and has since been deleted on YouTube keeps its row,
-  // flagged, rather than vanishing from the history.
-  const label = v.youtube_deleted_at ? 'deleted' : v.status;
 
   return `<div class="item">
       <div class="item-main">
@@ -257,7 +254,7 @@ function videoItemHtml(v) {
         <div class="sub">${sub}${link}</div>
       </div>
       <div class="actions">
-        <span class="badge ${label}">${label}</span>
+        <span class="badge ${v.status}">${v.status}</span>
         <button class="del" data-id="${escapeHtml(v.id)}" title="Remove from this list" aria-label="Remove from this list">&times;</button>
       </div>
     </div>`;
@@ -298,6 +295,10 @@ async function syncWithYouTube() {
   if (error) return setMsg(msg, `Could not check YouTube: ${error.message}`, 'err');
 
   setMsg(msg, 'Checking YouTube…', 'info');
+  // The run itself is quick — about two seconds of YouTube once GitHub has
+  // finished starting a job, so roughly 20 seconds end to end. Re-read often
+  // over half a minute rather than rarely over two: the old 20-second interval
+  // left "Checking YouTube…" on screen long after the data had already landed.
   let checks = 0;
   followUpTimer = setInterval(async () => {
     checks += 1;
@@ -306,7 +307,7 @@ async function syncWithYouTube() {
     clearInterval(followUpTimer);
     followUpTimer = null;
     setMsg(msg, 'Up to date with YouTube. Reload the page to check again.', 'ok');
-  }, 20000);
+  }, 5000);
 }
 
 // ── helpers ────────────────────────────────────────────────────────────────

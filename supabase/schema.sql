@@ -40,10 +40,6 @@ create table if not exists public.post_yt_vido_automation_videos (
   -- sent to Telegram when the video goes public; posting and pinning it on
   -- YouTube is manual.
   first_comment     text,
-  -- Set when a video that had already published is found gone from YouTube.
-  -- The row is kept and shown as "deleted"; only videos that never published
-  -- are removed outright.
-  youtube_deleted_at timestamptz,
   created_at        timestamptz default now(),
   updated_at        timestamptz default now()
 );
