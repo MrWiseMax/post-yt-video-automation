@@ -18,6 +18,42 @@ const fmtWhen = (iso) =>
   }).format(new Date(iso)) + ` ${TIMEZONE_LABEL}`;
 
 /**
+ * Drop rows whose video is no longer on YouTube — deleted in Studio, or an
+ * upload cancelled before it ever went public. videos.list simply omits ids it
+ * cannot return, so an id missing from the batch is the signal.
+ *
+ * Guarded against the one dangerous case: if EVERY video comes back missing and
+ * there was more than one, that is far more likely a credentials or API problem
+ * than the whole schedule being deleted at once, so nothing is removed.
+ *
+ * @returns {Promise<Array>} the rows whose video still exists
+ */
+async function dropDeletedVideos(supabase, rows, statuses) {
+  const missing = rows.filter((v) => !statuses.has(v.youtube_video_id));
+  if (missing.length === 0) return rows;
+
+  if (missing.length === rows.length && rows.length > 1) {
+    console.error(
+      `All ${rows.length} scheduled videos came back missing from YouTube. Treating that as an API ` +
+        'or credentials problem rather than as deletions, so nothing was removed.'
+    );
+    return rows;
+  }
+
+  for (const v of missing) {
+    const { error } = await supabase.from(VIDEOS_TABLE).delete().eq('id', v.id);
+    if (error) {
+      console.error(`Could not remove "${v.title}" from the list: ${error.message}`);
+      continue;
+    }
+    console.log(`No longer on YouTube, removed from the list: ${v.title}`);
+    await sendTelegram(`🗑️ Removed from the list — no longer on YouTube: ${v.title}`);
+  }
+
+  return rows.filter((v) => statuses.has(v.youtube_video_id));
+}
+
+/**
  * Copy publish times down from YouTube, which is the source of truth: the time
  * can be changed in the YouTube Studio app at any point, and this app would
  * otherwise keep showing the original one — and, worse, miss the go-live for a
@@ -70,14 +106,11 @@ async function main() {
   const yt = youtubeClient();
 
   const statuses = await listVideoStatuses(yt, rows.map((v) => v.youtube_video_id));
-  await syncPublishTimes(supabase, rows, statuses);
+  const live = await dropDeletedVideos(supabase, rows, statuses);
+  await syncPublishTimes(supabase, live, statuses);
 
-  for (const v of rows) {
+  for (const v of live) {
     const status = statuses.get(v.youtube_video_id);
-    if (!status) {
-      console.warn(`Not found on YouTube (deleted?): ${v.title}`);
-      continue;
-    }
     if (status.privacyStatus !== 'public') {
       console.log(`Not live yet (${status.privacyStatus}): ${v.title}`);
       continue;

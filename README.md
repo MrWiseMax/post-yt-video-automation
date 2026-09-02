@@ -30,6 +30,10 @@ That's it. **The Drive files are never deleted** — nothing is removed from you
   Studio app and the 15-minute check copies it back into this app and the database. Without that,
   a video moved earlier would go live before the worker thought it was due, so the Telegram message
   telling you to like and comment would arrive late.
+- **Deleted videos clean themselves up.** Delete a scheduled video in YouTube Studio, or cancel
+  its upload, and the 15-minute check removes its row so the app stops listing it. If *every*
+  scheduled video comes back missing at once, nothing is removed — that pattern means a
+  credentials or API problem, not deletions.
 - **Supabase** records every video: queued -> processing -> scheduled -> posted / failed.
 
 ### Settings the YouTube API cannot set (do these once per video in Studio)
