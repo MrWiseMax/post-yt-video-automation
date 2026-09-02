@@ -277,6 +277,27 @@ $('videoList').addEventListener('click', async (e) => {
   loadVideos();
 });
 
+// ── Refresh from YouTube ─────────────────────────────────
+// The page cannot reach YouTube itself, so this asks Supabase to fire the
+// worker, which copies publish times down and removes videos that are gone.
+// The run takes about a minute; the list picks the changes up on its own.
+$('refreshBtn').addEventListener('click', async () => {
+  const btn = $('refreshBtn');
+  const msg = $('refreshMsg');
+  btn.disabled = true;
+  setMsg(msg, 'Asking YouTube…', 'info');
+
+  const { error } = await supabase.rpc('dispatch_refresh_videos');
+  if (error) {
+    btn.disabled = false;
+    return setMsg(msg, `Could not start the refresh: ${error.message}`, 'err');
+  }
+
+  setMsg(msg, 'Checking YouTube — the list updates by itself in about a minute.', 'ok');
+  // Long enough for the run to finish, so it cannot be fired repeatedly.
+  setTimeout(() => { btn.disabled = false; }, 60000);
+});
+
 // ── helpers ────────────────────────────────────────────────────────────────
 function setMsg(el, text, kind) {
   el.textContent = text;

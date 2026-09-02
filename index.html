@@ -61,8 +61,12 @@
         </div>
 
         <div class="card">
-          <h2>Recent videos</h2>
+          <div class="card-head">
+            <h2>Recent videos</h2>
+            <button id="refreshBtn" title="Check YouTube for changed publish times and deleted videos">Refresh from YouTube</button>
+          </div>
           <p class="hint">Auto-refreshes. Status: queued → processing → scheduled → posted.</p>
+          <div id="refreshMsg" class="msg"></div>
           <div id="videoList" class="list"><div class="small">Loading…</div></div>
         </div>
       </section>

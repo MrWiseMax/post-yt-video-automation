@@ -4,6 +4,10 @@ import { listVideoStatuses } from './lib/youtube.js';
 import { sendTelegram } from './lib/telegram.js';
 
 const VIDEOS_TABLE = 'post_yt_vido_automation_videos';
+// Set only when the run came from the "Refresh from YouTube" button. The
+// scheduled runs just watch for videos going public; copying publish times down
+// and clearing out deleted videos happens when asked for, not on a timer.
+const REFRESH_FROM_YOUTUBE = process.env.REFRESH_FROM_YOUTUBE === '1';
 const now = () => new Date().toISOString();
 
 // The zone the web app shows every time in (js/config.js). Duplicated rather
@@ -106,11 +110,18 @@ async function main() {
   const yt = youtubeClient();
 
   const statuses = await listVideoStatuses(yt, rows.map((v) => v.youtube_video_id));
-  const live = await dropDeletedVideos(supabase, rows, statuses);
-  await syncPublishTimes(supabase, live, statuses);
+  let live = rows;
+  if (REFRESH_FROM_YOUTUBE) {
+    live = await dropDeletedVideos(supabase, rows, statuses);
+    await syncPublishTimes(supabase, live, statuses);
+  }
 
   for (const v of live) {
     const status = statuses.get(v.youtube_video_id);
+    if (!status) {
+      console.warn(`Not found on YouTube (deleted?): ${v.title}`);
+      continue;
+    }
     if (status.privacyStatus !== 'public') {
       console.log(`Not live yet (${status.privacyStatus}): ${v.title}`);
       continue;

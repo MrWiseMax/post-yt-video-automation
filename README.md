@@ -26,14 +26,15 @@ That's it. **The Drive files are never deleted** — nothing is removed from you
 - **Final description** = Claude's description + chapters + your saved footer, trimmed to 5000 characters.
 - **First comment** = the question you ask the viewer at the end of the video (Claude pulls it out of the `.srt`) followed by a fixed sign-off. It is sent to you on Telegram when the video goes public; posting and pinning it is manual, because the Data API cannot pin a comment. Edit the sign-off in `COMMENT_SIGNATURE` in `worker/src/process.js`.
 - **YouTube Data API v3:** uploads as *private* with `publishAt` = your chosen time, uses category **Education** (`27`), answers the Studio "AI use" disclosure with **No**, sets thumbnail (auto-shrunk to fit YouTube's 2 MB limit), and uploads the `.srt` as an English caption track.
-- **YouTube is the source of truth for publish times.** Change a scheduled time in the YouTube
-  Studio app and the 15-minute check copies it back into this app and the database. Without that,
-  a video moved earlier would go live before the worker thought it was due, so the Telegram message
-  telling you to like and comment would arrive late.
-- **Deleted videos clean themselves up.** Delete a scheduled video in YouTube Studio, or cancel
-  its upload, and the 15-minute check removes its row so the app stops listing it. If *every*
-  scheduled video comes back missing at once, nothing is removed — that pattern means a
-  credentials or API problem, not deletions.
+- **Go-live detection** runs on its own every 15 minutes (Supabase pg_cron fires the workflow —
+  GitHub's own schedule is too unreliable) and sends the Telegram message carrying the comment. It
+  checks every scheduled video against YouTube's real privacy status, so it still catches a video
+  whose time was moved in Studio.
+- **Refresh from YouTube** — the button on the Recent videos card. YouTube is the source of truth
+  for publish times, since they are changed in Studio, so this copies them down and removes
+  scheduled videos that no longer exist there. It runs on demand rather than on a timer. If *every*
+  scheduled video comes back missing at once nothing is removed — that pattern means a credentials
+  or API problem, not deletions.
 - **Supabase** records every video: queued -> processing -> scheduled -> posted / failed.
 
 ### Settings the YouTube API cannot set (do these once per video in Studio)

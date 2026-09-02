@@ -88,6 +88,9 @@ Legend: `VALUE_TO_COPY` means a value you will copy into a secret or setting lat
    check from Supabase with pg_cron instead. It needs step 4 below done first, since
    it reuses the stored GitHub token.
 
+   Also run `supabase/add_refresh_button.sql` once, for the "Refresh from YouTube"
+   button on the Recent videos card. Same requirement: the GitHub token row first.
+
 4. In that same SQL editor, insert your GitHub repository details and fine-grained token:
    ```sql
    insert into post_yt_vido_automation_app_config (id, github_owner, github_repo, github_pat)
