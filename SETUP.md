@@ -82,6 +82,12 @@ Legend: `VALUE_TO_COPY` means a value you will copy into a secret or setting lat
    from the old in-app reschedule feature, run `supabase/drop_reschedule_column.sql`
    once to remove it, its trigger and that trigger's function. Publish times are
    changed in YouTube Studio now. Fresh installs never get the column.
+   *Recommended:* run `supabase/add_cron_ping.sql` once too. GitHub treats scheduled
+   workflows as best effort and in practice fires this repo's 15-minute cron every
+   2-5 hours, which makes the go-live Telegram late. That file schedules the same
+   check from Supabase with pg_cron instead. It needs step 4 below done first, since
+   it reuses the stored GitHub token.
+
 4. In that same SQL editor, insert your GitHub repository details and fine-grained token:
    ```sql
    insert into post_yt_vido_automation_app_config (id, github_owner, github_repo, github_pat)

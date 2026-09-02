@@ -3,8 +3,13 @@ name: Check Scheduled Videos Live
 # Every ~15 minutes: copy publish times down from YouTube, which is the source of
 # truth for them, and detect scheduled videos that have gone public.
 on:
+  # GitHub's own schedule is best-effort and in practice fires every few hours,
+  # so it is only a backstop. The real cadence comes from Supabase pg_cron, which
+  # fires the repository_dispatch below every 15 minutes.
   schedule:
     - cron: '*/15 * * * *'
+  repository_dispatch:
+    types: [check-live]
   workflow_dispatch:
 
 concurrency:
