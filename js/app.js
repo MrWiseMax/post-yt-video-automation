@@ -82,10 +82,12 @@ function render(session) {
   $('signOutBtn').classList.toggle('hidden', !authed);
   if (authed) {
     if (settingsLoadedForUserId !== userId && settingsLoadingForUserId !== userId) loadSettings(userId);
-    loadVideos();
     if (!syncStarted) {
       syncStarted = true;
+      showVideoSkeleton();
       syncWithYouTube();
+    } else {
+      loadVideos();
     }
   } else {
     settingsLoadedForUserId = null;
@@ -222,17 +224,47 @@ $('scheduleBtn').addEventListener('click', async () => {
 });
 
 // ── Recent videos ─────────────────────────────────────────────────────────
-async function loadVideos() {
+async function loadVideos({ fade = false } = {}) {
   const { data, error } = await supabase
     .from(VIDEOS_TABLE)
     .select('*')
     .order('created_at', { ascending: false })
     .limit(12);
-  const list = $('videoList');
-  if (error) { list.innerHTML = `<div class="msg err">${escapeHtml(error.message)}</div>`; return; }
-  if (!data || data.length === 0) { list.innerHTML = '<div class="small">No videos yet.</div>'; return; }
 
-  list.innerHTML = data.map(videoItemHtml).join('');
+  let html;
+  if (error) html = `<div class="msg err">${escapeHtml(error.message)}</div>`;
+  else if (!data || data.length === 0) html = '<div class="small">No videos yet.</div>';
+  else html = data.map(videoItemHtml).join('');
+
+  if (fade) fadeInto(html);
+  else $('videoList').innerHTML = html;
+}
+
+// Placeholder rows shaped like real ones, shown while YouTube is being checked.
+// aria-hidden so a screen reader announces the status message instead of
+// reading out four empty rows.
+function showVideoSkeleton(count = 4) {
+  $('videoList').innerHTML = Array.from(
+    { length: count },
+    () => `<div class="item skeleton" aria-hidden="true">
+        <div class="item-main">
+          <div class="sk sk-title"></div>
+          <div class="sk sk-sub"></div>
+        </div>
+        <div class="actions"><div class="sk sk-badge"></div></div>
+      </div>`
+  ).join('');
+}
+
+// Fade out, swap, fade back in. The rAF matters: without it the browser can
+// paint the new markup before the class is removed, and the fade never shows.
+function fadeInto(html) {
+  const list = $('videoList');
+  list.classList.add('fading');
+  setTimeout(() => {
+    list.innerHTML = html;
+    requestAnimationFrame(() => list.classList.remove('fading'));
+  }, 180);
 }
 
 function videoItemHtml(v) {
@@ -306,7 +338,10 @@ async function syncWithYouTube() {
   const before = await readLastChecked();
 
   const { error } = await supabase.rpc('dispatch_refresh_videos');
-  if (error) return setMsg(msg, `Could not check YouTube: ${error.message}`, 'err');
+  if (error) {
+    setMsg(msg, `Could not check YouTube: ${error.message}`, 'err');
+    return loadVideos({ fade: true });
+  }
 
   setMsg(msg, 'Checking YouTube…', 'info');
   let tries = 0;
@@ -317,7 +352,7 @@ async function syncWithYouTube() {
     if (stamp && stamp !== before) {
       clearInterval(followUpTimer);
       followUpTimer = null;
-      await loadVideos();
+      await loadVideos({ fade: true });
       setMsg(msg, 'Up to date with YouTube.', 'ok');
       return;
     }
@@ -326,7 +361,7 @@ async function syncWithYouTube() {
     if (tries >= 30) {
       clearInterval(followUpTimer);
       followUpTimer = null;
-      await loadVideos();
+      await loadVideos({ fade: true });
       setMsg(msg, 'YouTube did not answer in time — reload to try again.', 'warn');
     }
   }, 2000);
