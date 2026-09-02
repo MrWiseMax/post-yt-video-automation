@@ -10,6 +10,10 @@ const VIDEOS_TABLE = 'post_yt_vido_automation_videos';
 const ALLOWED_EMAIL_SET = new Set(ALLOWED_EMAILS.map((e) => e.trim().toLowerCase()));
 
 let syncStarted = false;
+// True for the whole check, so a second render() — supabase fires
+// onAuthStateChange right after getSession() on load — cannot replace the
+// placeholders with real rows while the check is still running.
+let syncing = false;
 let followUpTimer = null;
 let settingsLoadedForUserId = null;
 let settingsLoadingForUserId = null;
@@ -86,13 +90,14 @@ function render(session) {
       syncStarted = true;
       showVideoSkeleton();
       syncWithYouTube();
-    } else {
+    } else if (!syncing) {
       loadVideos();
     }
   } else {
     settingsLoadedForUserId = null;
     settingsLoadingForUserId = null;
     syncStarted = false;
+    syncing = false;
     if (followUpTimer) {
       clearInterval(followUpTimer);
       followUpTimer = null;
@@ -331,6 +336,7 @@ async function readLastChecked() {
 }
 
 async function syncWithYouTube() {
+  syncing = true;
   const msg = $('refreshMsg');
   // Remember the stamp before asking, so the wait ends on the value changing
   // rather than on a timer. Comparing values rather than clocks keeps the
@@ -339,6 +345,7 @@ async function syncWithYouTube() {
 
   const { error } = await supabase.rpc('dispatch_refresh_videos');
   if (error) {
+    syncing = false;
     setMsg(msg, `Could not check YouTube: ${error.message}`, 'err');
     return loadVideos({ fade: true });
   }
@@ -352,6 +359,7 @@ async function syncWithYouTube() {
     if (stamp && stamp !== before) {
       clearInterval(followUpTimer);
       followUpTimer = null;
+      syncing = false;
       await loadVideos({ fade: true });
       setMsg(msg, 'Up to date with YouTube.', 'ok');
       return;
@@ -361,6 +369,7 @@ async function syncWithYouTube() {
     if (tries >= 30) {
       clearInterval(followUpTimer);
       followUpTimer = null;
+      syncing = false;
       await loadVideos({ fade: true });
       setMsg(msg, 'YouTube did not answer in time — reload to try again.', 'warn');
     }
