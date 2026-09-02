@@ -38,6 +38,10 @@ That's it. **The Drive files are never deleted** — nothing is removed from you
   firing once every 2-5 hours. These runs *only* watch for videos going public; publish times and
   deleted videos are still reconciled only when you open the app.
 - **Supabase** records every video: queued -> processing -> scheduled -> posted / failed.
+- **A new upload updates itself in the list.** After clicking Process & Schedule the row is watched
+  until it settles — every 5 seconds for the first three minutes, then every 15 — so it moves through
+  queued -> processing -> scheduled without a page reload. The watching stops the moment nothing is in
+  flight, and gives up after 30 minutes.
 
 ### Settings the YouTube API cannot set (do these once per video in Studio)
 

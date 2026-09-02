@@ -8,6 +8,11 @@ const supabaseProjectRef = new URL(SUPABASE_URL).hostname.split('.')[0];
 const SETTINGS_TABLE = 'post_yt_vido_automation_settings';
 const VIDEOS_TABLE = 'post_yt_vido_automation_videos';
 const ALLOWED_EMAIL_SET = new Set(ALLOWED_EMAILS.map((e) => e.trim().toLowerCase()));
+// Statuses the worker is still moving a row through. Everything else has
+// settled and will not change on its own.
+const PENDING_STATUSES = new Set(['queued', 'processing']);
+// An upload that has not settled by now is stuck, not slow.
+const PENDING_WATCH_MS = 30 * 60 * 1000;
 
 let syncStarted = false;
 // True for the whole check, so a second render() — supabase fires
@@ -15,6 +20,8 @@ let syncStarted = false;
 // placeholders with real rows while the check is still running.
 let syncing = false;
 let followUpTimer = null;
+let pendingTimer = null;
+let pendingSince = 0;
 let settingsLoadedForUserId = null;
 let settingsLoadingForUserId = null;
 
@@ -98,6 +105,7 @@ function render(session) {
     settingsLoadingForUserId = null;
     syncStarted = false;
     syncing = false;
+    stopPendingWatch();
     if (followUpTimer) {
       clearInterval(followUpTimer);
       followUpTimer = null;
@@ -243,6 +251,44 @@ async function loadVideos({ fade = false } = {}) {
 
   if (fade) fadeInto(html);
   else $('videoList').innerHTML = html;
+
+  watchPending(data);
+}
+
+// A queued row becomes processing, then scheduled, in a GitHub Action minutes
+// later, and nothing tells the page it happened — so the list re-reads itself
+// while any row is still in flight, and stops the moment none are. Driven from
+// loadVideos() so every draw, wherever it came from, re-decides.
+function watchPending(rows) {
+  // A failed read is not evidence the work finished; keep whatever watch is
+  // already running and let the next tick decide.
+  const pending = rows ? rows.some((v) => PENDING_STATUSES.has(v.status)) : !!pendingSince;
+  if (!pending) return stopPendingWatch();
+  if (!pendingSince) pendingSince = Date.now();
+  if (!pendingTimer) schedulePendingPoll();
+}
+
+function schedulePendingPoll() {
+  const waited = Date.now() - pendingSince;
+  // Close together while the upload is likely to land, then back off.
+  pendingTimer = setTimeout(async () => {
+    pendingTimer = null;
+    if (Date.now() - pendingSince > PENDING_WATCH_MS) {
+      stopPendingWatch();
+      setMsg($('refreshMsg'), 'Still working on an upload — reload to keep watching it.', 'warn');
+      return;
+    }
+    // The load-time YouTube check owns the list while it runs; don't replace
+    // its placeholders.
+    if (syncing) return schedulePendingPoll();
+    await loadVideos();
+  }, waited < 3 * 60 * 1000 ? 5000 : 15000);
+}
+
+function stopPendingWatch() {
+  if (pendingTimer) clearTimeout(pendingTimer);
+  pendingTimer = null;
+  pendingSince = 0;
 }
 
 // Placeholder rows shaped like real ones, shown while YouTube is being checked.
